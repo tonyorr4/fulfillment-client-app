@@ -139,25 +139,42 @@ async function initializeDatabase() {
             CREATE INDEX IF NOT EXISTS idx_activity_client_id ON activity_log(client_id);
         `);
 
-        // Migration: Make client_email optional (for existing databases)
-        await client.query(`
-            ALTER TABLE clients ALTER COLUMN client_email DROP NOT NULL;
-        `).catch(() => {
-            // Ignore error if column already allows NULL
-        });
-
-        // Migration: Add access control columns to users table
-        await client.query(`
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'Viewer';
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT FALSE;
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS approved_by INTEGER;
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
-        `).catch(() => {
-            // Ignore errors if columns already exist
-        });
-
+        // Migrations run AFTER COMMIT to avoid transaction conflicts
         await client.query('COMMIT');
+
+        // Migration: Make client_email optional (for existing databases)
+        try {
+            await pool.query(`
+                ALTER TABLE clients ALTER COLUMN client_email DROP NOT NULL;
+            `);
+            console.log('✓ Migration: Made client_email optional');
+        } catch (error) {
+            // Ignore error if column already allows NULL or table doesn't exist yet
+            console.log('  (Skipped migration: client_email already optional or table new)');
+        }
+
+        // Migration: Add access control columns to users table (for shared Sincro database)
+        try {
+            await pool.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'Viewer';
+            `);
+            await pool.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT FALSE;
+            `);
+            await pool.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS approved_by INTEGER;
+            `);
+            await pool.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
+            `);
+            await pool.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
+            `);
+            console.log('✓ Migration: Added access control columns to users table');
+        } catch (error) {
+            // Columns already exist from maintenance app - this is expected
+            console.log('  (Skipped migration: users table already has access control columns)');
+        }
         console.log('✓ Database schema initialized successfully');
 
     } catch (error) {
