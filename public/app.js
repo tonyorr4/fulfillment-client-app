@@ -340,24 +340,32 @@ async function openClientDetail(clientId) {
 
 // Populate client detail modal with data
 function populateClientDetailModal(client) {
+    console.log('Populating modal for client:', client);
+
     // Set approval dropdown
     const approvalSelect = document.getElementById('clientApprovalSelect');
-    if (client.auto_approved) {
-        approvalSelect.value = 'auto-approve';
-    } else if (client.client_approved === 'yes') {
-        approvalSelect.value = 'yes';
-    } else if (client.client_approved === 'no') {
-        approvalSelect.value = 'no';
-    } else {
-        approvalSelect.value = '';
+    if (approvalSelect) {
+        if (client.auto_approved) {
+            approvalSelect.value = 'auto-approve';
+        } else if (client.client_approved === 'yes') {
+            approvalSelect.value = 'yes';
+        } else if (client.client_approved === 'no') {
+            approvalSelect.value = 'no';
+        } else {
+            approvalSelect.value = '';
+        }
     }
 
     // Update client ID and name in header
-    document.querySelector('#clientDetailModal .card-id').textContent = client.client_id;
-    document.querySelector('#clientDetailModal h2').textContent = client.client_name;
+    const cardIdEl = document.querySelector('#clientDetailModal .card-id');
+    if (cardIdEl) cardIdEl.textContent = client.client_id;
+
+    const titleEl = document.querySelector('#clientDetailModal h2');
+    if (titleEl) titleEl.textContent = client.client_name;
 
     // Update description
-    document.querySelector('#clientDetailModal .detail-section p').textContent = client.additional_info || 'No additional information provided.';
+    const descEl = document.querySelector('#clientDetailModal .detail-section p');
+    if (descEl) descEl.textContent = client.additional_info || 'No additional information provided.';
 
     // Load subtasks
     loadSubtasksIntoModal(client.subtasks || []);

@@ -217,7 +217,7 @@ async function createClient(clientData) {
         client_id, client_name, client_email, est_inbound_date, client_type,
         avg_orders, num_skus, battery, heavy_sku, num_pallets,
         special_packaging, barcoding, additional_info,
-        sales_team, fulfillment_ops, auto_approved, created_by
+        sales_team, fulfillment_ops, auto_approved, created_by, status
     } = clientData;
 
     const result = await pool.query(`
@@ -225,14 +225,14 @@ async function createClient(clientData) {
             client_id, client_name, client_email, est_inbound_date, client_type,
             avg_orders, num_skus, battery, heavy_sku, num_pallets,
             special_packaging, barcoding, additional_info,
-            sales_team, fulfillment_ops, auto_approved, created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+            sales_team, fulfillment_ops, auto_approved, created_by, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
         RETURNING *
     `, [
         client_id, client_name, client_email, est_inbound_date, client_type,
         avg_orders, num_skus, battery, heavy_sku, num_pallets,
         special_packaging, barcoding, additional_info,
-        sales_team, fulfillment_ops, auto_approved, created_by
+        sales_team, fulfillment_ops, auto_approved, created_by, status
     ]);
 
     return result.rows[0];
@@ -325,7 +325,35 @@ async function createAccessRequest(googleId, email, name, department, reason) {
              RETURNING *`,
             [googleId, email, name, department, reason]
         );
-        return { success: true, request: result.rows[0] };
+
+        const accessRequest = result.rows[0];
+
+        // Send email notification via Sincro Access webhook
+        // Don't fail the access request if notification fails
+        if (process.env.SINCRO_ACCESS_URL) {
+            try {
+                const notificationResponse = await fetch(`${process.env.SINCRO_ACCESS_URL}/api/notify-access-request`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ requestId: accessRequest.id })
+                });
+
+                if (notificationResponse.ok) {
+                    const notificationResult = await notificationResponse.json();
+                    console.log('✓ Email notification sent for access request:', notificationResult.messageId);
+                } else {
+                    console.warn('⚠ Failed to send email notification:', await notificationResponse.text());
+                }
+            } catch (notificationError) {
+                console.warn('⚠ Error sending email notification:', notificationError.message);
+            }
+        } else {
+            console.warn('⚠ SINCRO_ACCESS_URL not configured. Email notification skipped.');
+        }
+
+        return { success: true, request: accessRequest };
     } catch (error) {
         console.error('Error creating access request:', error);
         return { success: false, error: error.message };
