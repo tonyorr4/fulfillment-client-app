@@ -102,9 +102,19 @@ app.get('/auth/google/callback',
 app.get('/auth/logout', (req, res) => {
     req.logout((err) => {
         if (err) {
+            console.error('Logout error:', err);
             return res.status(500).json({ error: 'Logout failed' });
         }
-        res.redirect('/');
+        // Destroy session completely
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Session destroy error:', err);
+            }
+            // Clear session cookie
+            res.clearCookie('connect.sid');
+            // Redirect to Google OAuth login
+            res.redirect('/auth/google');
+        });
     });
 });
 
