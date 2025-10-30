@@ -24,7 +24,7 @@ async function initializeDatabase() {
     try {
         await client.query('BEGIN');
 
-        // Users table (OAuth users)
+        // Users table (OAuth users with access control)
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -32,9 +32,32 @@ async function initializeDatabase() {
                 email VARCHAR(255) UNIQUE NOT NULL,
                 name VARCHAR(255) NOT NULL,
                 picture TEXT,
+                role VARCHAR(50) DEFAULT 'Viewer',
+                approved BOOLEAN DEFAULT FALSE,
+                approved_by INTEGER,
+                approved_at TIMESTAMP,
+                last_login TIMESTAMP,
                 active BOOLEAN DEFAULT true,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Access requests table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS access_requests (
+                id SERIAL PRIMARY KEY,
+                google_id VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                department VARCHAR(255),
+                reason TEXT,
+                app_name VARCHAR(255) DEFAULT 'Sincro Fulfillment App',
+                status VARCHAR(50) DEFAULT 'pending',
+                reviewed_by INTEGER,
+                reviewed_at TIMESTAMP,
+                review_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
@@ -121,6 +144,17 @@ async function initializeDatabase() {
             ALTER TABLE clients ALTER COLUMN client_email DROP NOT NULL;
         `).catch(() => {
             // Ignore error if column already allows NULL
+        });
+
+        // Migration: Add access control columns to users table
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'Viewer';
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT FALSE;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS approved_by INTEGER;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;
+        `).catch(() => {
+            // Ignore errors if columns already exist
         });
 
         await client.query('COMMIT');
@@ -262,35 +296,36 @@ async function logActivity(clientId, userId, action, details = {}) {
 }
 
 // Helper function to find or create user
-async function findOrCreateUser(googleProfile) {
-    const { id: google_id, emails, displayName, photos } = googleProfile;
-    const email = emails[0].value;
-    const picture = photos && photos[0] ? photos[0].value : null;
-
-    // Check if user exists
-    let result = await pool.query(
-        'SELECT * FROM users WHERE google_id = $1 OR email = $2',
-        [google_id, email]
-    );
-
-    if (result.rows.length > 0) {
-        // Update existing user
-        result = await pool.query(`
-            UPDATE users
-            SET name = $1, picture = $2, updated_at = CURRENT_TIMESTAMP
-            WHERE google_id = $3 OR email = $4
-            RETURNING *
-        `, [displayName, picture, google_id, email]);
-    } else {
-        // Create new user
-        result = await pool.query(`
-            INSERT INTO users (google_id, email, name, picture)
-            VALUES ($1, $2, $3, $4)
-            RETURNING *
-        `, [google_id, email, displayName, picture]);
+// Access control helper functions
+async function createAccessRequest(googleId, email, name, department, reason) {
+    try {
+        const result = await pool.query(
+            `INSERT INTO access_requests (google_id, email, name, department, reason, app_name, status, created_at)
+             VALUES ($1, $2, $3, $4, $5, 'Sincro Fulfillment App', 'pending', NOW())
+             RETURNING *`,
+            [googleId, email, name, department, reason]
+        );
+        return { success: true, request: result.rows[0] };
+    } catch (error) {
+        console.error('Error creating access request:', error);
+        return { success: false, error: error.message };
     }
+}
 
-    return result.rows[0];
+async function getAccessRequestStatus(googleId, email) {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM access_requests
+             WHERE (google_id = $1 OR email = $2)
+             ORDER BY created_at DESC
+             LIMIT 1`,
+            [googleId, email]
+        );
+        return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+        console.error('Error getting access request status:', error);
+        return null;
+    }
 }
 
 // Export pool and helper functions
@@ -307,5 +342,6 @@ module.exports = {
     getCommentsByClientId,
     createComment,
     logActivity,
-    findOrCreateUser
+    createAccessRequest,
+    getAccessRequestStatus
 };

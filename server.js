@@ -83,9 +83,18 @@ app.get('/auth/google',
 
 // Google OAuth callback
 app.get('/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: '/login-failed' }),
-    (req, res) => {
+    passport.authenticate('google', { failureRedirect: '/access-denied', failureMessage: true }),
+    (req, res, next) => {
+        // Success - user is approved
         res.redirect('/');
+    },
+    (err, req, res, next) => {
+        // Handle authentication failure
+        if (err) {
+            console.error('OAuth callback error:', err);
+            return res.redirect('/access-denied?error=oauth_error');
+        }
+        next();
     }
 );
 
@@ -108,11 +117,38 @@ app.get('/api/auth/user', (req, res) => {
                 id: req.user.id,
                 name: req.user.name,
                 email: req.user.email,
-                picture: req.user.picture
+                picture: req.user.picture,
+                role: req.user.role
             }
         });
     } else {
         res.json({ authenticated: false });
+    }
+});
+
+// Submit access request
+app.post('/api/auth/request-access', async (req, res) => {
+    try {
+        const { googleId, email, name, department, reason } = req.body;
+
+        if (!googleId || !email || !name || !department || !reason) {
+            return res.status(400).json({ error: 'All fields are required' });
+        }
+
+        const { createAccessRequest } = require('./database');
+        const result = await createAccessRequest(googleId, email, name, department, reason);
+
+        if (result.success) {
+            res.json({
+                success: true,
+                message: 'Access request submitted successfully. You will be notified when approved.'
+            });
+        } else {
+            res.status(500).json({ error: 'Failed to submit access request' });
+        }
+    } catch (error) {
+        console.error('Error submitting access request:', error);
+        res.status(500).json({ error: 'Failed to submit access request' });
     }
 });
 
@@ -481,6 +517,11 @@ app.get('/api/health', (req, res) => {
 });
 
 // ==================== CATCH-ALL ROUTE ====================
+
+// Serve access request page for denied access
+app.get('/access-denied', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'access-request.html'));
+});
 
 // Serve index.html for all other routes (SPA)
 app.get('*', (req, res) => {
