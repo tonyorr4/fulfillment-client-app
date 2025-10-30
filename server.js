@@ -254,15 +254,18 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
         // Generate client ID if not provided
         const generatedClientId = clientId || `SFC-${Math.floor(Math.random() * 900 + 100)}`;
 
-        // Check auto-approval criteria (matching N8N workflow)
-        const autoApprovalCriteria = [
-            battery === 'Yes',
-            numPallets === '50-100' || numPallets === '>100',
-            numSkus === '50-100' || numSkus === '>100',
-            avgOrders === '>3000',
-            clientType === 'Dropship'
-        ];
-        const autoApproved = autoApprovalCriteria.some(condition => condition === true);
+        // Check if manual review is required
+        // DO NOT auto-approve if ANY of these conditions are true:
+        // 1. Battery/DG goods = Yes
+        // 2. Number of Pallets = 50-100 or >100
+        // 3. Number of SKUs = 50-100 or >100
+        const requiresManualReview =
+            battery === 'Yes' ||
+            numPallets === '50-100' || numPallets === '>100' ||
+            numSkus === '50-100' || numSkus === '>100';
+
+        // Auto-approve only if manual review is NOT required
+        const autoApproved = !requiresManualReview;
 
         // Create client data
         const clientData = {
