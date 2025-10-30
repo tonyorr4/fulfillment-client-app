@@ -270,6 +270,45 @@ async function handleClientApproval(value) {
     }
 }
 
+// Handle status change from dropdown
+async function handleStatusChange(newStatus) {
+    if (!currentClientCard) {
+        console.error('No current client card reference');
+        return;
+    }
+
+    const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
+
+    try {
+        console.log(`Changing status from ${clientData.status} to ${newStatus}`);
+
+        const success = await updateClientStatus(clientData.id, newStatus);
+
+        if (success) {
+            const statusNames = {
+                'new-request': 'New Request',
+                'signing': 'Signing',
+                'client-setup': 'Client Setup',
+                'setup-complete': 'Setup Complete - Pending Inbound',
+                'inbound': 'Inbound',
+                'fulfilling': 'Fulfilling',
+                'complete': 'Complete',
+                'not-pursuing': 'Not Pursuing'
+            };
+
+            showToast(`Client moved to ${statusNames[newStatus]}`, 'success');
+
+            // Close modal after a brief delay
+            setTimeout(() => {
+                closeModal('clientDetailModal');
+            }, 500);
+        }
+    } catch (error) {
+        console.error('Error in handleStatusChange:', error);
+        showToast('Failed to update status', 'error');
+    }
+}
+
 // Delete client
 async function deleteClient() {
     if (!currentClientCard) return;
@@ -347,6 +386,13 @@ function populateClientDetailModal(client) {
     console.log('Populating modal for client:', client);
 
     try {
+        // Set status dropdown to current client status
+        const statusSelect = document.getElementById('clientStatusSelect');
+        if (statusSelect && client.status) {
+            statusSelect.value = client.status;
+            console.log('Set status dropdown to:', client.status);
+        }
+
         // Set approval dropdown
         const approvalSelect = document.getElementById('clientApprovalSelect');
         if (approvalSelect) {

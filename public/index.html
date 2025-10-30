@@ -1103,11 +1103,11 @@
                         <!-- Status -->
                         <div class="detail-section">
                             <h3>Status</h3>
-                            <select class="form-group" style="width: 100%; padding: 8px;">
+                            <select id="clientStatusSelect" onchange="handleStatusChange(this.value)" style="width: 100%; padding: 8px; border: 1px solid #dfe1e6; border-radius: 3px; font-size: 14px;">
                                 <option value="new-request">New Request</option>
                                 <option value="signing">Signing</option>
-                                <option value="client-setup" selected>Client Setup</option>
-                                <option value="setup-complete">Setup Complete</option>
+                                <option value="client-setup">Client Setup</option>
+                                <option value="setup-complete">Setup Complete - Pending Inbound</option>
                                 <option value="inbound">Inbound</option>
                                 <option value="fulfilling">Fulfilling</option>
                                 <option value="complete">Complete</option>
