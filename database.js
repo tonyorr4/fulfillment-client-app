@@ -25,6 +25,8 @@ async function initializeDatabase() {
         await client.query('BEGIN');
 
         // Users table (OAuth users with access control)
+        // Note: This table is shared across all Sincro apps (Maintenance, Fulfillment, Access)
+        // It may already exist from another app - CREATE TABLE IF NOT EXISTS will skip if exists
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -37,13 +39,14 @@ async function initializeDatabase() {
                 approved_by INTEGER,
                 approved_at TIMESTAMP,
                 last_login TIMESTAMP,
-                active BOOLEAN DEFAULT true,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
 
         // Access requests table
+        // Note: This table is shared across all Sincro apps (Maintenance, Fulfillment, Access)
+        // It may already exist from another app - CREATE TABLE IF NOT EXISTS will skip if exists
         await client.query(`
             CREATE TABLE IF NOT EXISTS access_requests (
                 id SERIAL PRIMARY KEY,

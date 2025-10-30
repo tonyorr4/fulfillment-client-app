@@ -154,7 +154,7 @@ async function ensureAuthenticated(req, res, next) {
         // Verify user still exists and is approved in database
         try {
             const result = await pool.query(
-                'SELECT * FROM users WHERE id = $1 AND approved = TRUE AND active = TRUE',
+                'SELECT * FROM users WHERE id = $1 AND approved = TRUE',
                 [req.user.id]
             );
 
