@@ -8,15 +8,17 @@
 ## 🔴 CRITICAL ISSUES (Must Fix Immediately)
 
 ### 1. Form Data Not Persisting to Client Tiles
-**Status:** 🔍 Investigating (In Progress)
+**Status:** 🔧 Partially Fixed - Testing Required
 **Priority:** 🔴 Critical
-**Issue:** When a new client request is submitted, the form input data is not appearing on the completed client tile. Tiles are showing filler/mock data instead of actual form values.
+**Issue:** When a new client request is submitted, the form input data is not appearing on the completed client tile. Client detail modal was showing hardcoded mock data.
 
 **Progress:**
 - [x] Audited form field names - ALL MATCH server expectations ✅
-- [x] Added comprehensive debugging logging throughout the data flow
-- [ ] Testing to identify where data is lost (WAITING FOR USER TO TEST)
-- [ ] Fix identified issues once found
+- [x] Added comprehensive debugging logging throughout the data flow ✅
+- [x] Removed ALL hardcoded data from client detail modal sidebar ✅
+- [x] Fully implemented updateSidebarFields() function to populate real data ✅
+- [ ] User testing required to verify tiles and detail modal show correct data
+- [ ] Need Railway logs from user's submission to verify data flow
 
 **Debugging Added:**
 - ✅ POST /api/clients: Log request body received
@@ -40,14 +42,16 @@
 ---
 
 ### 2. Sales Team Assignment Shows "Loading" on Tiles
-**Status:** 🔍 Investigating (In Progress)
+**Status:** 🔍 Investigating - Need Logs
 **Priority:** 🔴 Critical
-**Issue:** The "Assigned To" section on client tiles shows "Loading..." instead of the actual sales team member name.
+**Issue:** The "Assigned To" section on client tiles shows "Loading..." instead of the actual sales team member name. New Request dropdown may not be loading sales team members correctly.
 
 **Progress:**
 - [x] Verified sales_team field is in form and being sent to server ✅
 - [x] Verified createClientCardElement uses client.sales_team to display ✅
-- [x] Added debugging to log sales_team value at each step
+- [x] Added debugging to log sales_team value at each step ✅
+- [ ] Need to check if openNewRequestModal() is successfully loading sales team members
+- [ ] Need Railway logs to see if sales_team is NULL or contains actual name
 - [ ] Testing to confirm sales_team is stored and retrieved (WAITING FOR USER TO TEST)
 
 **Hypothesis:**
