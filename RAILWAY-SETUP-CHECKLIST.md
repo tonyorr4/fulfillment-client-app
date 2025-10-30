@@ -85,6 +85,21 @@ If using wrong database:
 
 ## 🆘 Common Errors
 
+### Error: "column 'active' does not exist"
+
+**Problem:** App trying to check for `active` column but shared database doesn't have it
+
+**Root Cause:** The shared Sincro database was created by the maintenance app, which doesn't use an `active` column in the users table.
+
+**Solution:** This has been fixed in the latest code. If you see this error:
+1. Make sure your local code is up to date: `git pull`
+2. Railway should auto-deploy the fix
+3. If not, manually trigger a redeploy in Railway
+
+**Already Fixed in Code:**
+- auth-config.js now only checks `approved` column (not `active`)
+- database.js users table matches shared Sincro schema
+
 ### Error: "getaddrinfo ENOTFOUND base"
 
 **Problem:** DATABASE_URL is malformed or not set correctly
