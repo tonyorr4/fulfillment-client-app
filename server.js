@@ -285,15 +285,14 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
             sales_team: salesTeam,
             fulfillment_ops: 'Ian', // Auto-assigned to Ian
             auto_approved: autoApproved,
-            created_by: req.user.id
+            created_by: req.user.id,
+            // Set status explicitly: 'signing' if auto-approved, 'new-request' if needs manual review
+            status: autoApproved ? 'signing' : 'new-request'
         };
 
-        // If auto-approved, set status to signing
-        if (autoApproved) {
-            clientData.status = 'signing';
-        }
-
         const newClient = await createClient(clientData);
+
+        console.log(`✓ Client created: ${newClient.client_id} | Status: ${newClient.status} | Auto-approved: ${autoApproved}`);
 
         // Log activity
         await logActivity(newClient.id, req.user.id, 'client_created', {

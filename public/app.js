@@ -182,7 +182,7 @@ async function submitNewRequest(event) {
         if (result.autoApproved) {
             showToast('Request submitted and AUTO-APPROVED! Moved to Signing.', 'success');
         } else {
-            showToast('Request submitted. Awaiting manual review.', 'success');
+            showToast('Request submitted. In New Request column awaiting manual review.', 'success');
         }
 
         // Close modal and reset form
