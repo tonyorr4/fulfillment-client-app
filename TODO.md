@@ -8,17 +8,18 @@
 ## 🔴 CRITICAL ISSUES (Must Fix Immediately)
 
 ### 1. Form Data Not Persisting to Client Tiles
-**Status:** 🔧 Partially Fixed - Testing Required
+**Status:** ✅ COMPLETE & VERIFIED
 **Priority:** 🔴 Critical
 **Issue:** When a new client request is submitted, the form input data is not appearing on the completed client tile. Client detail modal was showing hardcoded mock data.
 
-**Progress:**
+**Resolution:**
 - [x] Audited form field names - ALL MATCH server expectations ✅
 - [x] Added comprehensive debugging logging throughout the data flow ✅
 - [x] Removed ALL hardcoded data from client detail modal sidebar ✅
 - [x] Fully implemented updateSidebarFields() function to populate real data ✅
-- [ ] User testing required to verify tiles and detail modal show correct data
-- [ ] Need Railway logs from user's submission to verify data flow
+- [x] User testing confirmed tiles and detail modal show correct data ✅
+
+**Completed:** October 30, 2025
 
 **Debugging Added:**
 - ✅ POST /api/clients: Log request body received
@@ -42,35 +43,25 @@
 ---
 
 ### 2. Sales Team Assignment Shows "Loading" on Tiles
-**Status:** 🔍 Investigating - Need Logs
+**Status:** ✅ FIXED - Testing Required
 **Priority:** 🔴 Critical
-**Issue:** The "Assigned To" section on client tiles shows "Loading..." instead of the actual sales team member name. New Request dropdown may not be loading sales team members correctly.
+**Issue:** The "Assigned To" section in client detail modal was showing "Loading..." instead of the actual sales team member name.
 
-**Progress:**
-- [x] Verified sales_team field is in form and being sent to server ✅
-- [x] Verified createClientCardElement uses client.sales_team to display ✅
-- [x] Added debugging to log sales_team value at each step ✅
-- [ ] Need to check if openNewRequestModal() is successfully loading sales team members
-- [ ] Need Railway logs to see if sales_team is NULL or contains actual name
-- [ ] Testing to confirm sales_team is stored and retrieved (WAITING FOR USER TO TEST)
+**Root Cause:**
+- Client detail modal had a `<select>` dropdown with id="detailSalesTeamSelect" that was never being populated
+- The dropdown had placeholder text "Loading..." that never changed
+- This was different from the New Request form dropdown which works correctly
 
-**Hypothesis:**
-Either:
-1. sales_team is NULL/undefined in database (not being stored)
-2. sales_team is stored but not returned by getAllClients query
-3. Frontend is receiving sales_team but getInitials() returns "?"
+**Resolution:**
+- [x] Replaced Sales Team dropdown with text display ✅
+- [x] Replaced Fulfillment Ops dropdown with text display ✅
+- [x] Updated updateSidebarFields() to populate both assignment fields ✅
+- [x] Added logging to verify sales_team value is being set ✅
+- [ ] User testing required to confirm fix works
 
-**Debugging Added:**
-- ✅ Server logs will show sales_team value in request body
-- ✅ Server logs will show sales_team value being stored
-- ✅ Server logs will show sales_team value being returned
-- ✅ Frontend logs will show sales_team value received
-- ✅ Card creation logs will show sales_team value used
+**Note:** Assignment fields are now read-only text displays. Editing assignments will be implemented as part of Feature #6 (Editable Client Details).
 
-**Files to Check:**
-- `database.js` - getAllClients query (verify sales_team is in SELECT)
-- `public/app.js` - createClientCardElement (line ~131)
-- `public/app.js` - getInitials function (line ~712)
+**Completed:** October 30, 2025
 
 ---
 
@@ -201,7 +192,51 @@ Either:
 
 ## 🟡 MEDIUM PRIORITY FEATURES
 
-### 6. Slack Integration - Client Tile Summary
+### 6. Editable Client Details in Client Tile
+**Status:** Not Started
+**Priority:** 🟡 Medium
+**Description:** Make client details editable directly within the client tile detail modal. Currently all fields are read-only.
+
+**Requirements:**
+- [ ] Make all client detail fields editable (inline editing or edit mode)
+- [ ] Fields to make editable:
+  - Client Name
+  - Email
+  - Client Type
+  - Avg Orders/Month
+  - Number of SKUs
+  - Battery/DG
+  - Heavy SKU
+  - Number of Pallets
+  - Special Packaging
+  - Barcoding
+  - Additional Info/Description
+- [ ] Add "Edit" / "Save" / "Cancel" buttons
+- [ ] Validate required fields before saving
+- [ ] Update database with new values
+- [ ] Show success/error messages
+- [ ] Refresh tile display after save
+
+**Implementation Options:**
+1. **Inline editing:** Click field → becomes editable → click elsewhere to save
+2. **Edit mode:** Click "Edit" button → all fields become editable → "Save" / "Cancel"
+3. **Edit modal:** Click "Edit" button → opens separate edit form modal
+
+**Recommended Approach:** Edit mode (option 2) - cleaner UX, clear save/cancel actions
+
+**API Changes Needed:**
+- [ ] Add PATCH /api/clients/:id endpoint to update client fields
+- [ ] Validation on server side
+- [ ] Log updates to activity_log
+
+**Files to Modify:**
+- `public/index.html` - Add edit/save/cancel buttons, make fields editable
+- `public/app.js` - Add edit mode functionality, save handler
+- `server.js` - Add PATCH endpoint for updating client
+
+---
+
+### 7. Slack Integration - Client Tile Summary
 **Status:** Not Started
 **Priority:** 🟡 Medium
 **Description:** Send Slack notifications/summaries for client tile updates.

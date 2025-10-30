@@ -727,6 +727,19 @@ function updateSidebarFields(client) {
             updatedEl.textContent = formatTimeAgo(updatedDate);
         }
 
+        // Sales Team (in Assigned To section)
+        const salesTeamEl = document.getElementById('detailSalesTeam');
+        if (salesTeamEl) {
+            salesTeamEl.textContent = client.sales_team || 'Not assigned';
+            console.log('✓ Sales Team set to:', client.sales_team);
+        }
+
+        // Fulfillment Ops (in Assigned To section)
+        const fulfillmentOpsEl = document.getElementById('detailFulfillmentOps');
+        if (fulfillmentOpsEl) {
+            fulfillmentOpsEl.textContent = client.fulfillment_ops || 'Not assigned';
+        }
+
         console.log('✓ Sidebar fields updated successfully');
     } catch (error) {
         console.error('Error updating sidebar fields:', error);
