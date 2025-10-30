@@ -44,7 +44,7 @@ async function initializeDatabase() {
                 id SERIAL PRIMARY KEY,
                 client_id VARCHAR(50) UNIQUE NOT NULL,
                 client_name VARCHAR(255) NOT NULL,
-                client_email VARCHAR(255) NOT NULL,
+                client_email VARCHAR(255),
                 est_inbound_date DATE NOT NULL,
                 client_type VARCHAR(50) NOT NULL,
                 avg_orders VARCHAR(50) NOT NULL,
@@ -115,6 +115,13 @@ async function initializeDatabase() {
             CREATE INDEX IF NOT EXISTS idx_subtasks_client_id ON subtasks(client_id);
             CREATE INDEX IF NOT EXISTS idx_activity_client_id ON activity_log(client_id);
         `);
+
+        // Migration: Make client_email optional (for existing databases)
+        await client.query(`
+            ALTER TABLE clients ALTER COLUMN client_email DROP NOT NULL;
+        `).catch(() => {
+            // Ignore error if column already allows NULL
+        });
 
         await client.query('COMMIT');
         console.log('✓ Database schema initialized successfully');

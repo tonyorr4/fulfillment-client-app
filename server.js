@@ -187,7 +187,7 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
         const clientData = {
             client_id: generatedClientId,
             client_name: clientName,
-            client_email: email,
+            client_email: email || null,
             est_inbound_date: inboundDate,
             client_type: clientType,
             avg_orders: avgOrders,
