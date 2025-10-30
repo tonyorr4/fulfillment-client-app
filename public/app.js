@@ -305,32 +305,36 @@ async function deleteClient() {
 // Open client detail modal
 async function openClientDetail(clientId) {
     try {
-        // Find client in allClients array
-        const client = allClients.find(c => c.id === clientId);
-        if (!client) {
-            showToast('Client not found', 'error');
-            return;
-        }
+        console.log('Opening client detail for ID:', clientId);
 
         // Fetch full client details with comments and subtasks
         const response = await fetch(`/api/clients/${clientId}`, {
             credentials: 'include'
         });
 
+        console.log('Fetch response status:', response.status);
+
         if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Failed to fetch client:', errorText);
             throw new Error('Failed to load client details');
         }
 
         const clientDetails = await response.json();
+        console.log('Client details received:', clientDetails);
 
         // Store current client card reference
         currentClientCard = document.querySelector(`.card[data-id="${clientId}"]`);
 
-        // Update modal with client data
-        populateClientDetailModal(clientDetails);
-
-        // Show modal
+        // Show modal FIRST
         document.getElementById('clientDetailModal').classList.add('active');
+
+        // Then populate data (wrapped in try-catch so errors don't break modal display)
+        try {
+            populateClientDetailModal(clientDetails);
+        } catch (populateError) {
+            console.error('Error populating modal (modal still shown):', populateError);
+        }
 
     } catch (error) {
         console.error('Error opening client detail:', error);
@@ -342,61 +346,82 @@ async function openClientDetail(clientId) {
 function populateClientDetailModal(client) {
     console.log('Populating modal for client:', client);
 
-    // Set approval dropdown
-    const approvalSelect = document.getElementById('clientApprovalSelect');
-    if (approvalSelect) {
-        if (client.auto_approved) {
-            approvalSelect.value = 'auto-approve';
-        } else if (client.client_approved === 'yes') {
-            approvalSelect.value = 'yes';
-        } else if (client.client_approved === 'no') {
-            approvalSelect.value = 'no';
-        } else {
-            approvalSelect.value = '';
+    try {
+        // Set approval dropdown
+        const approvalSelect = document.getElementById('clientApprovalSelect');
+        if (approvalSelect) {
+            if (client.auto_approved) {
+                approvalSelect.value = 'auto-approve';
+            } else if (client.client_approved === 'yes') {
+                approvalSelect.value = 'yes';
+            } else if (client.client_approved === 'no') {
+                approvalSelect.value = 'no';
+            } else {
+                approvalSelect.value = '';
+            }
         }
+
+        // Update client ID and name in header
+        const cardIdEl = document.querySelector('#clientDetailModal .card-id');
+        if (cardIdEl) cardIdEl.textContent = client.client_id || 'N/A';
+
+        const titleEl = document.querySelector('#clientDetailModal h2');
+        if (titleEl) titleEl.textContent = client.client_name || 'Unnamed Client';
+
+        // Update description - find the FIRST p tag in the FIRST detail-section
+        const firstDetailSection = document.querySelector('#clientDetailModal .detail-section');
+        if (firstDetailSection) {
+            const descEl = firstDetailSection.querySelector('p');
+            if (descEl) {
+                descEl.textContent = client.additional_info || 'No additional information provided.';
+            }
+        }
+
+        // Load subtasks
+        loadSubtasksIntoModal(client.subtasks || []);
+
+        // Load comments
+        loadCommentsIntoModal(client.comments || []);
+
+        // Update sidebar fields
+        updateSidebarFields(client);
+
+        console.log('Modal populated successfully');
+    } catch (error) {
+        console.error('Error in populateClientDetailModal:', error);
+        throw error;
     }
-
-    // Update client ID and name in header
-    const cardIdEl = document.querySelector('#clientDetailModal .card-id');
-    if (cardIdEl) cardIdEl.textContent = client.client_id;
-
-    const titleEl = document.querySelector('#clientDetailModal h2');
-    if (titleEl) titleEl.textContent = client.client_name;
-
-    // Update description
-    const descEl = document.querySelector('#clientDetailModal .detail-section p');
-    if (descEl) descEl.textContent = client.additional_info || 'No additional information provided.';
-
-    // Load subtasks
-    loadSubtasksIntoModal(client.subtasks || []);
-
-    // Load comments
-    loadCommentsIntoModal(client.comments || []);
-
-    // Update sidebar fields
-    updateSidebarFields(client);
 }
 
 // Load subtasks into modal
 function loadSubtasksIntoModal(subtasks) {
-    const subtaskList = document.querySelector('.subtask-list');
-    subtaskList.innerHTML = '';
+    try {
+        const subtaskList = document.querySelector('.subtask-list');
+        if (!subtaskList) {
+            console.warn('Subtask list element not found');
+            return;
+        }
 
-    if (subtasks.length === 0) {
-        subtaskList.innerHTML = '<li style="color: #5e6c84; padding: 10px;">No subtasks yet</li>';
-        return;
+        subtaskList.innerHTML = '';
+
+        if (!subtasks || subtasks.length === 0) {
+            subtaskList.innerHTML = '<li style="color: #5e6c84; padding: 10px;">No subtasks yet</li>';
+            return;
+        }
+
+        subtasks.forEach(subtask => {
+            const li = document.createElement('li');
+            li.className = 'subtask-item';
+            li.innerHTML = `
+                <input type="checkbox" class="subtask-checkbox" ${subtask.completed ? 'checked' : ''} onchange="toggleSubtask(${subtask.id})">
+                <span class="subtask-text ${subtask.completed ? 'completed' : ''}">${subtask.subtask_text}</span>
+                <div class="subtask-assignee" title="${subtask.assignee}">${getInitials(subtask.assignee)}</div>
+            `;
+            subtaskList.appendChild(li);
+        });
+    } catch (error) {
+        console.error('Error loading subtasks:', error);
     }
-
-    subtasks.forEach(subtask => {
-        const li = document.createElement('li');
-        li.className = 'subtask-item';
-        li.innerHTML = `
-            <input type="checkbox" class="subtask-checkbox" ${subtask.completed ? 'checked' : ''} onchange="toggleSubtask(${subtask.id})">
-            <span class="subtask-text ${subtask.completed ? 'completed' : ''}">${subtask.subtask_text}</span>
-            <div class="subtask-assignee" title="${subtask.assignee}">${getInitials(subtask.assignee)}</div>
-        `;
-        subtaskList.appendChild(li);
-    });
 }
 
 // Toggle subtask completion
@@ -473,42 +498,46 @@ async function addSubtask() {
 
 // Load comments into modal
 function loadCommentsIntoModal(comments) {
-    const commentsContainer = document.querySelector('.detail-section:has(h3:contains("Comments"))');
-    if (!commentsContainer) return;
+    try {
+        // Find comments section - use simpler selector
+        const commentBox = document.querySelector('.comment-box');
+        if (!commentBox) {
+            console.warn('Comment box not found');
+            return;
+        }
 
-    // Find comments list
-    const existingComments = commentsContainer.querySelectorAll('.comment');
-    existingComments.forEach(c => c.remove());
+        // Remove existing comments
+        const existingComments = document.querySelectorAll('.comment');
+        existingComments.forEach(c => c.remove());
 
-    if (comments.length === 0) {
-        const noComments = document.createElement('p');
-        noComments.style.color = '#5e6c84';
-        noComments.style.padding = '10px 0';
-        noComments.textContent = 'No comments yet. Be the first to comment!';
-        commentsContainer.querySelector('.comment-box').after(noComments);
-        return;
-    }
+        if (!comments || comments.length === 0) {
+            console.log('No comments to display');
+            return;
+        }
 
-    comments.forEach(comment => {
-        const commentEl = document.createElement('div');
-        commentEl.className = 'comment';
+        comments.forEach(comment => {
+            const commentEl = document.createElement('div');
+            commentEl.className = 'comment';
 
-        const initials = getInitials(comment.user_name);
-        const timeAgo = formatTimeAgo(new Date(comment.created_at));
+            const initials = getInitials(comment.user_name);
+            const timeAgo = formatTimeAgo(new Date(comment.created_at));
 
-        commentEl.innerHTML = `
-            <div class="comment-avatar">${initials}</div>
-            <div class="comment-content">
-                <div class="comment-header">
-                    <span class="comment-author">${comment.user_name}</span>
-                    <span class="comment-time">${timeAgo}</span>
+            commentEl.innerHTML = `
+                <div class="comment-avatar">${initials}</div>
+                <div class="comment-content">
+                    <div class="comment-header">
+                        <span class="comment-author">${comment.user_name}</span>
+                        <span class="comment-time">${timeAgo}</span>
+                    </div>
+                    <div class="comment-text">${escapeHtml(comment.comment_text)}</div>
                 </div>
-                <div class="comment-text">${escapeHtml(comment.comment_text)}</div>
-            </div>
-        `;
+            `;
 
-        commentsContainer.querySelector('.comment-box').after(commentEl);
-    });
+            commentBox.parentNode.insertBefore(commentEl, commentBox);
+        });
+    } catch (error) {
+        console.error('Error loading comments:', error);
+    }
 }
 
 // Add new comment
