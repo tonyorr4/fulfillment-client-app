@@ -1,0 +1,37 @@
+Objective:,,,,
+,,,,
+Create an application that mimics my current Jira board but with many more improvements,,,,
+,,,,
+,,,,
+Requirment,User Story,Acceptance Criteria,Notes,Priorty
+R1 - Setup,Read all md files in C:\Users\Tony\automations,"Build app with my setup requirements
+security
+
+access management
+
+layout
+
+release steps",md files,1
+R2 - UI,Model the app of off my current Jira board,I similar board visibilty,see screen shot shared in project folder,1
+R3 - Use,"As a sales team member, I want to be able to enter a Fulfillment Request form where I can enter detias about the client",Match to current N8N form,N8N json code shared in project folder,1
+R4 - Use,As a Fulfillment team member I want to be able to action on client tiles and move them thorought the Jira process depending on the stage they are on,"Individual Statuses on client tiles
+- New request
+Signing 
+
+Client setup
+
+Setup Complete - Pending inbound
+
+Inbound
+
+Fulfilling
+
+Complete
+
+Not pursing",Status based tiles,1
+R5 - Use,"I want each individual client tile to have a comment section, where you can comment and reply to quesitons asked. I want to be able to tag users that have access to the app. i.e tag a specific person",comment messaging system with tag ability,messaging,1
+R5 - Use,When I am tagged or a comment happens on a tile a user is assigned to. I want to recieve and emial notificaion,Email notification,read xxx md file in C:\Users\Tony\automations,1
+R6 - UI,Each individual client tile should have the inputs listed in the n8n workflow json code. And the form should pass those inputs to the client tile,Use N8N Json code to match,match N8N,1
+R7 - UI,Each tiles should allow subtasks to be created and assigned specifcially,Specific sub taks assignment,sub tasks,1
+R8 - Slack integration,I want to integrate slack. I have public slack channels for each client that are made. I want the tool to look through the specific public slack channel for the client and add a setion in the tile that summerized discsussions,Slack integration,slack,1
+R9 - Auto moves,I want the tiles to auto move when certain tasks are completed,Auto moves,Will completing during app setup,1

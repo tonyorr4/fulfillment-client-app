@@ -1,0 +1,723 @@
+// Sincro Fulfillment Client App - Frontend JavaScript
+// Connects to backend API
+
+// ==================== GLOBAL STATE ====================
+let currentUser = null;
+let allClients = [];
+let currentClientCard = null;
+let draggedCard = null;
+let isDragging = false;
+let dragStartTime = 0;
+
+// ==================== AUTHENTICATION ====================
+
+// Check authentication status on page load
+async function checkAuth() {
+    try {
+        const response = await fetch('/api/auth/user', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (data.authenticated) {
+            currentUser = data.user;
+            displayUser(currentUser);
+            await loadAllClients();
+        } else {
+            // Redirect to Google OAuth login
+            window.location.href = '/auth/google';
+        }
+    } catch (error) {
+        console.error('Error checking auth:', error);
+        showToast('Authentication error. Please refresh.', 'error');
+    }
+}
+
+// Display user info in header
+function displayUser(user) {
+    const userAvatar = document.querySelector('.user-avatar');
+    const userName = userAvatar.nextElementSibling;
+
+    const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
+    userAvatar.textContent = initials;
+    userName.textContent = user.name;
+
+    if (user.picture) {
+        userAvatar.style.backgroundImage = `url(${user.picture})`;
+        userAvatar.style.backgroundSize = 'cover';
+        userAvatar.textContent = '';
+    }
+}
+
+// Logout
+function logout() {
+    window.location.href = '/auth/logout';
+}
+
+// ==================== CLIENT OPERATIONS ====================
+
+// Load all clients from API
+async function loadAllClients() {
+    try {
+        const response = await fetch('/api/clients', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch clients');
+        }
+
+        allClients = await response.json();
+        renderAllClients();
+
+    } catch (error) {
+        console.error('Error loading clients:', error);
+        showToast('Failed to load clients', 'error');
+    }
+}
+
+// Render all clients on the board
+function renderAllClients() {
+    // Clear all columns
+    document.querySelectorAll('.column-cards').forEach(col => {
+        col.innerHTML = '';
+    });
+
+    // Render each client in its appropriate column
+    allClients.forEach(client => {
+        const card = createClientCardElement(client);
+        const targetColumn = document.querySelector(`.column[data-status="${client.status}"] .column-cards`);
+        if (targetColumn) {
+            targetColumn.appendChild(card);
+        }
+    });
+
+    // Update column counts
+    updateColumnCounts();
+}
+
+// Create client card element
+function createClientCardElement(client) {
+    const card = document.createElement('div');
+    card.className = `card ${client.status}`;
+    card.draggable = true;
+    card.setAttribute('data-id', client.id);
+    card.setAttribute('data-client-data', JSON.stringify(client));
+    card.ondragstart = drag;
+
+    const formattedDate = new Date(client.est_inbound_date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+    });
+
+    // Approval badge
+    let approvalBadge = '';
+    if (client.auto_approved) {
+        approvalBadge = '<span class="card-badge auto-approved"><i class="fas fa-check"></i> Auto-Approved</span>';
+    } else if (client.status === 'new-request') {
+        approvalBadge = '<span class="card-badge needs-review"><i class="fas fa-clock"></i> Needs Review</span>';
+    }
+
+    // Task badge
+    const completedSubtasks = client.subtasks ? client.subtasks.filter(s => s.completed).length : 0;
+    const totalSubtasks = client.subtasks ? client.subtasks.length : 0;
+    let taskBadge = '';
+    if (totalSubtasks > 0) {
+        taskBadge = `<span class="card-badge"><i class="fas fa-tasks"></i> ${completedSubtasks}/${totalSubtasks}</span>`;
+    }
+
+    // Assignee avatars
+    const salesInitials = getInitials(client.sales_team);
+    const opsInitials = getInitials(client.fulfillment_ops);
+
+    card.innerHTML = `
+        <div class="card-id">${client.client_id}</div>
+        <div class="card-title">${client.client_name}</div>
+        <div class="card-meta">
+            <span class="card-badge"><i class="fas fa-calendar"></i> ${formattedDate}</span>
+            <span class="card-badge"><i class="fas fa-box"></i> ${client.client_type}</span>
+            <span class="card-badge"><i class="fas fa-chart-line"></i> ${client.avg_orders}/mo</span>
+            ${taskBadge}
+            ${approvalBadge}
+            <div class="assignee-group">
+                <div class="card-assignee" title="Sales: ${client.sales_team}">${salesInitials}</div>
+                <div class="card-assignee" title="Ops: ${client.fulfillment_ops}" style="background-color: #a29bfe; color: #6c5ce7;">${opsInitials}</div>
+            </div>
+        </div>
+    `;
+
+    card.addEventListener('click', function(e) {
+        if (!isDragging) {
+            openClientDetail(client.id);
+        }
+    });
+
+    return card;
+}
+
+// Submit new fulfillment request
+async function submitNewRequest(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const data = Object.fromEntries(formData.entries());
+
+    try {
+        const response = await fetch('/api/clients', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to create client');
+        }
+
+        const result = await response.json();
+
+        // Show success message
+        if (result.autoApproved) {
+            showToast('Request submitted and AUTO-APPROVED! Moved to Signing.', 'success');
+        } else {
+            showToast('Request submitted. Awaiting manual review.', 'success');
+        }
+
+        // Close modal and reset form
+        closeModal('newRequestModal');
+        event.target.reset();
+
+        // Reload clients
+        await loadAllClients();
+
+    } catch (error) {
+        console.error('Error submitting request:', error);
+        showToast('Failed to submit request. Please try again.', 'error');
+    }
+}
+
+// Update client status (drag and drop or manual change)
+async function updateClientStatus(clientId, newStatus) {
+    try {
+        const response = await fetch(`/api/clients/${clientId}/status`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ status: newStatus })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update status');
+        }
+
+        // Reload clients to get updated data (including auto-created subtasks)
+        await loadAllClients();
+
+        return true;
+    } catch (error) {
+        console.error('Error updating status:', error);
+        showToast('Failed to update status', 'error');
+        return false;
+    }
+}
+
+// Update client approval
+async function handleClientApproval(value) {
+    if (!currentClientCard) return;
+
+    const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
+
+    try {
+        const response = await fetch(`/api/clients/${clientData.id}/approval`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ approval: value })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update approval');
+        }
+
+        let message = '';
+        if (value === 'yes') {
+            message = 'Client approved! Moved to Signing.';
+        } else if (value === 'no') {
+            message = 'Client marked as not pursuing.';
+        } else if (value === 'auto-approve') {
+            message = 'Auto-approved! Moved to Signing.';
+        }
+
+        showToast(message, value === 'no' ? 'error' : 'success');
+
+        // Close modal
+        setTimeout(() => {
+            closeModal('clientDetailModal');
+        }, 500);
+
+        // Reload clients
+        await loadAllClients();
+
+    } catch (error) {
+        console.error('Error updating approval:', error);
+        showToast('Failed to update approval', 'error');
+    }
+}
+
+// Delete client
+async function deleteClient() {
+    if (!currentClientCard) return;
+
+    const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
+
+    if (confirm(`Are you sure you want to delete ${clientData.client_name}?`)) {
+        try {
+            const response = await fetch(`/api/clients/${clientData.id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete client');
+            }
+
+            showToast('Client deleted', 'error');
+            closeModal('clientDetailModal');
+
+            // Reload clients
+            await loadAllClients();
+
+        } catch (error) {
+            console.error('Error deleting client:', error);
+            showToast('Failed to delete client', 'error');
+        }
+    }
+}
+
+// ==================== CLIENT DETAIL MODAL ====================
+
+// Open client detail modal
+async function openClientDetail(clientId) {
+    try {
+        // Find client in allClients array
+        const client = allClients.find(c => c.id === clientId);
+        if (!client) {
+            showToast('Client not found', 'error');
+            return;
+        }
+
+        // Fetch full client details with comments and subtasks
+        const response = await fetch(`/api/clients/${clientId}`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to load client details');
+        }
+
+        const clientDetails = await response.json();
+
+        // Store current client card reference
+        currentClientCard = document.querySelector(`.card[data-id="${clientId}"]`);
+
+        // Update modal with client data
+        populateClientDetailModal(clientDetails);
+
+        // Show modal
+        document.getElementById('clientDetailModal').classList.add('active');
+
+    } catch (error) {
+        console.error('Error opening client detail:', error);
+        showToast('Failed to load client details', 'error');
+    }
+}
+
+// Populate client detail modal with data
+function populateClientDetailModal(client) {
+    // Set approval dropdown
+    const approvalSelect = document.getElementById('clientApprovalSelect');
+    if (client.auto_approved) {
+        approvalSelect.value = 'auto-approve';
+    } else if (client.client_approved === 'yes') {
+        approvalSelect.value = 'yes';
+    } else if (client.client_approved === 'no') {
+        approvalSelect.value = 'no';
+    } else {
+        approvalSelect.value = '';
+    }
+
+    // Update client ID and name in header
+    document.querySelector('#clientDetailModal .card-id').textContent = client.client_id;
+    document.querySelector('#clientDetailModal h2').textContent = client.client_name;
+
+    // Update description
+    document.querySelector('#clientDetailModal .detail-section p').textContent = client.additional_info || 'No additional information provided.';
+
+    // Load subtasks
+    loadSubtasksIntoModal(client.subtasks || []);
+
+    // Load comments
+    loadCommentsIntoModal(client.comments || []);
+
+    // Update sidebar fields
+    updateSidebarFields(client);
+}
+
+// Load subtasks into modal
+function loadSubtasksIntoModal(subtasks) {
+    const subtaskList = document.querySelector('.subtask-list');
+    subtaskList.innerHTML = '';
+
+    if (subtasks.length === 0) {
+        subtaskList.innerHTML = '<li style="color: #5e6c84; padding: 10px;">No subtasks yet</li>';
+        return;
+    }
+
+    subtasks.forEach(subtask => {
+        const li = document.createElement('li');
+        li.className = 'subtask-item';
+        li.innerHTML = `
+            <input type="checkbox" class="subtask-checkbox" ${subtask.completed ? 'checked' : ''} onchange="toggleSubtask(${subtask.id})">
+            <span class="subtask-text ${subtask.completed ? 'completed' : ''}">${subtask.subtask_text}</span>
+            <div class="subtask-assignee" title="${subtask.assignee}">${getInitials(subtask.assignee)}</div>
+        `;
+        subtaskList.appendChild(li);
+    });
+}
+
+// Toggle subtask completion
+async function toggleSubtask(subtaskId) {
+    try {
+        const response = await fetch(`/api/subtasks/${subtaskId}/toggle`, {
+            method: 'PATCH',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to toggle subtask');
+        }
+
+        // Reload current client details
+        if (currentClientCard) {
+            const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
+            await openClientDetail(clientData.id);
+        }
+
+        // Reload all clients to update task counts on cards
+        await loadAllClients();
+
+    } catch (error) {
+        console.error('Error toggling subtask:', error);
+        showToast('Failed to update subtask', 'error');
+    }
+}
+
+// Add new subtask
+async function addSubtask() {
+    if (!currentClientCard) return;
+
+    const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
+    const input = document.querySelector('.add-subtask input');
+    const subtaskText = input.value.trim();
+
+    if (!subtaskText) {
+        showToast('Please enter a subtask description', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/clients/${clientData.id}/subtasks`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                subtaskText,
+                assignee: currentUser.name
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to create subtask');
+        }
+
+        input.value = '';
+        showToast('Subtask added', 'success');
+
+        // Reload client details
+        await openClientDetail(clientData.id);
+
+        // Reload all clients
+        await loadAllClients();
+
+    } catch (error) {
+        console.error('Error adding subtask:', error);
+        showToast('Failed to add subtask', 'error');
+    }
+}
+
+// Load comments into modal
+function loadCommentsIntoModal(comments) {
+    const commentsContainer = document.querySelector('.detail-section:has(h3:contains("Comments"))');
+    if (!commentsContainer) return;
+
+    // Find comments list
+    const existingComments = commentsContainer.querySelectorAll('.comment');
+    existingComments.forEach(c => c.remove());
+
+    if (comments.length === 0) {
+        const noComments = document.createElement('p');
+        noComments.style.color = '#5e6c84';
+        noComments.style.padding = '10px 0';
+        noComments.textContent = 'No comments yet. Be the first to comment!';
+        commentsContainer.querySelector('.comment-box').after(noComments);
+        return;
+    }
+
+    comments.forEach(comment => {
+        const commentEl = document.createElement('div');
+        commentEl.className = 'comment';
+
+        const initials = getInitials(comment.user_name);
+        const timeAgo = formatTimeAgo(new Date(comment.created_at));
+
+        commentEl.innerHTML = `
+            <div class="comment-avatar">${initials}</div>
+            <div class="comment-content">
+                <div class="comment-header">
+                    <span class="comment-author">${comment.user_name}</span>
+                    <span class="comment-time">${timeAgo}</span>
+                </div>
+                <div class="comment-text">${escapeHtml(comment.comment_text)}</div>
+            </div>
+        `;
+
+        commentsContainer.querySelector('.comment-box').after(commentEl);
+    });
+}
+
+// Add new comment
+async function addComment() {
+    if (!currentClientCard) return;
+
+    const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
+    const textarea = document.querySelector('.comment-box textarea');
+    const commentText = textarea.value.trim();
+
+    if (!commentText) {
+        showToast('Please enter a comment', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/clients/${clientData.id}/comments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                commentText,
+                mentionedUsers: [] // TODO: Parse @ mentions if needed
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to add comment');
+        }
+
+        textarea.value = '';
+        showToast('Comment added', 'success');
+
+        // Reload client details
+        await openClientDetail(clientData.id);
+
+    } catch (error) {
+        console.error('Error adding comment:', error);
+        showToast('Failed to add comment', 'error');
+    }
+}
+
+// Update sidebar fields
+function updateSidebarFields(client) {
+    // This function updates all the sidebar fields in the modal
+    // For now, we'll keep the hardcoded values in HTML and just update key fields
+    // In a full implementation, you'd dynamically populate all fields here
+}
+
+// ==================== DRAG AND DROP ====================
+
+function drag(event) {
+    dragStartTime = Date.now();
+    draggedCard = event.target.closest('.card');
+    if (!draggedCard) return;
+
+    setTimeout(() => {
+        if (draggedCard) {
+            isDragging = true;
+            draggedCard.classList.add('dragging');
+        }
+    }, 50);
+
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/html', draggedCard.innerHTML);
+
+    draggedCard.addEventListener('dragend', function() {
+        this.classList.remove('dragging');
+        setTimeout(() => {
+            isDragging = false;
+            draggedCard = null;
+        }, 100);
+    }, { once: true });
+}
+
+function allowDrop(event) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+
+    const columnCards = event.currentTarget;
+    if (!columnCards.classList.contains('drag-over')) {
+        columnCards.classList.add('drag-over');
+    }
+}
+
+function dragLeave(event) {
+    event.currentTarget.classList.remove('drag-over');
+}
+
+async function drop(event) {
+    event.preventDefault();
+    const columnCards = event.currentTarget;
+    columnCards.classList.remove('drag-over');
+
+    if (draggedCard) {
+        const newStatus = columnCards.closest('.column').getAttribute('data-status');
+        const clientData = JSON.parse(draggedCard.getAttribute('data-client-data'));
+
+        // Update status via API
+        const success = await updateClientStatus(clientData.id, newStatus);
+
+        if (success) {
+            showToast(`Client moved to ${formatStatusName(newStatus)}`);
+        }
+    }
+}
+
+// ==================== UTILITY FUNCTIONS ====================
+
+function formatStatusName(status) {
+    const statusNames = {
+        'new-request': 'New Request',
+        'signing': 'Signing',
+        'client-setup': 'Client Setup',
+        'setup-complete': 'Setup Complete - Pending Inbound',
+        'inbound': 'Inbound',
+        'fulfilling': 'Fulfilling',
+        'complete': 'Complete',
+        'not-pursuing': 'Not Pursuing'
+    };
+    return statusNames[status] || status;
+}
+
+function getInitials(name) {
+    if (!name || name === 'Unassigned') return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+}
+
+function formatTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + ' years ago';
+
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + ' months ago';
+
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + ' days ago';
+
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + ' hours ago';
+
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + ' minutes ago';
+
+    return Math.floor(seconds) + ' seconds ago';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function updateColumnCounts() {
+    document.querySelectorAll('.column').forEach(column => {
+        const count = column.querySelectorAll('.card').length;
+        column.querySelector('.column-count').textContent = count;
+    });
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+
+    toastMessage.textContent = message;
+    toast.className = `toast show ${type}`;
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+function openNewRequestModal() {
+    document.getElementById('newRequestModal').classList.add('active');
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+function filterCards() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const cards = document.querySelectorAll('.card');
+
+    cards.forEach(card => {
+        const title = card.querySelector('.card-title').textContent.toLowerCase();
+        const id = card.querySelector('.card-id').textContent.toLowerCase();
+
+        if (title.includes(searchTerm) || id.includes(searchTerm)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function showAllCards() {
+    document.getElementById('searchInput').value = '';
+    document.querySelectorAll('.card').forEach(card => {
+        card.style.display = 'block';
+    });
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.classList.remove('active');
+    }
+}
+
+// ==================== INITIALIZATION ====================
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Sincro Fulfillment Client App loaded');
+    checkAuth(); // Check authentication and load data
+});

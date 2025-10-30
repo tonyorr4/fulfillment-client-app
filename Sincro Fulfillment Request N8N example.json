@@ -1,0 +1,764 @@
+{
+  "name": "Sincro Fulfillment Request",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Sincro Fulfillment Request",
+        "formDescription": "Form used for prospective Sincro fullfilment clients",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Your Email",
+              "fieldType": "email",
+              "placeholder": "easyhip.com",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Client Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Client ID"
+            },
+            {
+              "fieldLabel": "est Inbound Date",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Client Type",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "eFulfillment"
+                  },
+                  {
+                    "option": "Crowd Funding"
+                  },
+                  {
+                    "option": "Dropship"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Average Orders (Per Month)",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "<100"
+                  },
+                  {
+                    "option": "100 - 200"
+                  },
+                  {
+                    "option": "200-500"
+                  },
+                  {
+                    "option": "500-1000"
+                  },
+                  {
+                    "option": "1000-3000"
+                  },
+                  {
+                    "option": ">3000"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Number of Unique SKUs",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "<25"
+                  },
+                  {
+                    "option": "25-50"
+                  },
+                  {
+                    "option": "50-100"
+                  },
+                  {
+                    "option": ">100"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Battery Included or DG Good",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Yes"
+                  },
+                  {
+                    "option": "No"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "SKU > 25lbs",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Yes"
+                  },
+                  {
+                    "option": "No"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "est Number of Pallets Stored",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "<20"
+                  },
+                  {
+                    "option": "20-50"
+                  },
+                  {
+                    "option": "50-100"
+                  },
+                  {
+                    "option": ">100"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Special Packaging",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Yes"
+                  },
+                  {
+                    "option": "No"
+                  },
+                  {
+                    "option": "N/A"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Will Items need to be Barcoded?",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Yes"
+                  },
+                  {
+                    "option": "No"
+                  },
+                  {
+                    "option": "N/A"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Additional Info",
+              "fieldType": "textarea",
+              "placeholder": "- If there are special packaging requirements, please detail\n- Any other useful information?\n- N/A if none",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -256,
+        112
+      ],
+      "id": "d9d5eaf9-0a46-4c94-ac53-825e6444e6f8",
+      "name": "On form submission",
+      "webhookId": "0efb8516-137c-4aae-8aea-6de4806c7d5c"
+    },
+    {
+      "parameters": {
+        "project": {
+          "__rl": true,
+          "value": "10222",
+          "mode": "list",
+          "cachedResultName": "Sincro Fulfillment Clients"
+        },
+        "issueType": {
+          "__rl": true,
+          "value": "10542",
+          "mode": "list",
+          "cachedResultName": "Client Tile"
+        },
+        "summary": "={{ $('On form submission').item.json['Client Name'] }}",
+        "additionalFields": {
+          "description": "={{ $('On form submission').item.json['Additional Info'] }}",
+          "customFieldsUi": {
+            "customFieldsValues": [
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11687",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Average Orders (Per Month)'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11685",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Your Email'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11692",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Client Type'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_10587",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Client ID'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_10328",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Client Name'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11691",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['est Number of Pallets Stored'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11688",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Number of Unique SKUs'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11689",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Battery Included or DG Good'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11690",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['SKU > 25lbs'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_10588",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['est Inbound Date'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11720",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Special Packaging'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11721",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Will Items need to be Barcoded?'] }}"
+              }
+            ]
+          },
+          "reporter": {
+            "__rl": true,
+            "value": "={{ $json.accountId }}",
+            "mode": "id"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        416,
+        16
+      ],
+      "id": "b12523c0-1ad3-4ef9-8e68-3cdc5d5fb3b7",
+      "name": "Create an issue",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "s6NIRXvLM9VrCnWZ",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a3298cf1-36fa-4581-9c4f-322617678298",
+              "leftValue": "={{ $json[\"Battery Included or DG Good\"] }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "9b6ec330-ab3e-4c5e-a249-8aa5c05c78c6",
+              "leftValue": "={{ $json[\"est Number of Pallets Stored\"] }}",
+              "rightValue": "50-100",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "09ace6fa-f85f-4f19-a96a-332b00e2ff53",
+              "leftValue": "={{ $json[\"est Number of Pallets Stored\"] }}",
+              "rightValue": ">100",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "19d47cb4-c10c-4642-86ad-078db438708e",
+              "leftValue": "={{ $json[\"Number of Unique SKUs\"] }}",
+              "rightValue": "50-100",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "c94bd436-4be5-4184-b68d-8450d4a07cbe",
+              "leftValue": "={{ $json[\"Number of Unique SKUs\"] }}",
+              "rightValue": ">100",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "8b3af8ae-f147-4728-b5d3-1f7482c70a84",
+              "leftValue": "={{ $json[\"Average Orders (Per Month)\"] }}",
+              "rightValue": ">100",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "fe391c73-1de0-4773-8696-1c9bc420c885",
+              "leftValue": "={{ $json[\"Client Type\"] }}",
+              "rightValue": "Dropship",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -32,
+        112
+      ],
+      "id": "15276b7c-b19f-423a-9c1c-413cf7d83e54",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('On form submission').item.json[\"Your Email\"] }}, laxops@gosincro.com",
+        "subject": "=Request Under Review - [ref: {{ $json.key }}]",
+        "message": "=Your request [{{ $json.key }}] is under review and can be viewed on JIRA with the following link:\n\nhttps://easyship-team.atlassian.net/jira/core/projects/SFC/board?filter=&groupBy=status\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        640,
+        16
+      ],
+      "id": "1349fc3f-a028-4a07-a1ff-2aeaa467a720",
+      "name": "Send a message",
+      "webhookId": "f1b2a0ba-72e3-401f-9b68-0e553ba22198",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "aWfh9iRU6RasYA6f",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('On form submission').item.json[\"Your Email\"] }}, laxops@gosincro.com",
+        "subject": "={{ $('On form submission').item.json[\"Client Name\"] }} is Auto Approved! - [ref: {{ $json.key }}]",
+        "message": "=Your request [{{ $json.key }}] for client [{{ $('On form submission').item.json['Client Name'] }}] has been auto approved by operations!\n\nWe may still have some follow up questions so be on the lookout!\n\nhttps://easyship-team.atlassian.net/jira/core/projects/SFC/board?filter=&groupBy=status\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        640,
+        208
+      ],
+      "id": "ae245edf-cb28-4cc2-8dee-4c0ef5415555",
+      "name": "Send a message1",
+      "webhookId": "f1b2a0ba-72e3-401f-9b68-0e553ba22198",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "aWfh9iRU6RasYA6f",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://easyship-team.atlassian.net/rest/api/3/user/search?query={{ $json['Your Email'] }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        192,
+        208
+      ],
+      "id": "ccdb02ed-2081-4943-b267-428d705fe904",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "4uyzFOfYivPTStOC",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://easyship-team.atlassian.net/rest/api/3/user/search?query={{ $json['Your Email'] }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        192,
+        16
+      ],
+      "id": "eba38f91-28ec-4533-96e9-cd3c0d75377f",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "4uyzFOfYivPTStOC",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "project": {
+          "__rl": true,
+          "value": "10222",
+          "mode": "list",
+          "cachedResultName": "Sincro Fulfillment Clients"
+        },
+        "issueType": {
+          "__rl": true,
+          "value": "10542",
+          "mode": "list",
+          "cachedResultName": "Client Tile"
+        },
+        "summary": "={{ $('On form submission').item.json['Client Name'] }}",
+        "additionalFields": {
+          "description": "={{ $('On form submission').item.json['Additional Info'] }}",
+          "customFieldsUi": {
+            "customFieldsValues": [
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11687",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Average Orders (Per Month)'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11685",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Your Email'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11692",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Client Type'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_10587",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Client ID'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_10328",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Client Name'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11691",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['est Number of Pallets Stored'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11688",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Number of Unique SKUs'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11689",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Battery Included or DG Good'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11690",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['SKU > 25lbs'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_10588",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['est Inbound Date'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11720",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Special Packaging'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "value": "customfield_11721",
+                  "mode": "id"
+                },
+                "fieldValue": "={{ $('On form submission').item.json['Will Items need to be Barcoded?'] }}"
+              },
+              {
+                "fieldId": {
+                  "__rl": true,
+                  "mode": "id",
+                  "value": "customfield_10590",
+                  "__regex": "^(customfield_[0-9]{2,})"
+                },
+                "fieldValue": "={{ { \"value\": \"Approve\" } }}"
+              }
+            ]
+          },
+          "reporter": {
+            "__rl": true,
+            "value": "={{ $json.accountId }}",
+            "mode": "id"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        416,
+        208
+      ],
+      "id": "d2f419df-b906-492e-afdb-f8abd7995daf",
+      "name": "Create an issue1",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "s6NIRXvLM9VrCnWZ",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an issue": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Create an issue1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Create an issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an issue1": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fb59a6c4-ef14-4023-884d-9c6fabb04f46",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "59f259051b10c9ae82a379765c900df7c648f38ed0c21fafc8658de950121fa9"
+  },
+  "id": "bMzWP0mjzUpUqmrR",
+  "tags": []
+}

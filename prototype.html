@@ -1,0 +1,1890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sincro Fulfillment Clients</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+            background-color: #f4f5f7;
+            color: #172b4d;
+        }
+
+        /* Header */
+        .header {
+            background-color: #0052cc;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #deebff;
+            color: #0052cc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #0052cc;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #0747a6;
+        }
+
+        .btn-success {
+            background-color: #00875a;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #006644;
+        }
+
+        .btn-secondary {
+            background-color: #f4f5f7;
+            color: #172b4d;
+            border: 1px solid #dfe1e6;
+        }
+
+        .btn-secondary:hover {
+            background-color: #ebecf0;
+        }
+
+        .btn-danger {
+            background-color: #de350b;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #bf2600;
+        }
+
+        /* Board Container */
+        .board-controls {
+            padding: 15px 20px;
+            background-color: white;
+            border-bottom: 1px solid #dfe1e6;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            max-width: 400px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #dfe1e6;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+        .board-container {
+            padding: 20px;
+            overflow-x: auto;
+            height: calc(100vh - 140px);
+        }
+
+        .board {
+            display: flex;
+            gap: 12px;
+            min-width: fit-content;
+        }
+
+        /* Column */
+        .column {
+            background-color: #f4f5f7;
+            border-radius: 3px;
+            width: 280px;
+            flex-shrink: 0;
+            max-height: calc(100vh - 180px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .column-header {
+            padding: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #5e6c84;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .column-count {
+            background-color: #dfe1e6;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .column-cards {
+            padding: 8px;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 100px;
+        }
+
+        .column-cards.drag-over {
+            background-color: #deebff;
+            border: 2px dashed #0052cc;
+            border-radius: 3px;
+        }
+
+        /* Card */
+        .card {
+            background-color: white;
+            border-radius: 3px;
+            padding: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            cursor: move;
+            transition: all 0.2s;
+            border-left: 4px solid transparent;
+            position: relative;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .card.drag-over {
+            transform: translateY(0);
+        }
+
+        .card.new-request {
+            border-left-color: #6554c0;
+        }
+
+        .card.signing {
+            border-left-color: #ff991f;
+        }
+
+        .card.client-setup {
+            border-left-color: #00b8d9;
+        }
+
+        .card.setup-complete {
+            border-left-color: #36b37e;
+        }
+
+        .card.inbound {
+            border-left-color: #0052cc;
+        }
+
+        .card.fulfilling {
+            border-left-color: #00875a;
+        }
+
+        .card.complete {
+            border-left-color: #00875a;
+        }
+
+        .card.not-pursuing {
+            border-left-color: #97a0af;
+        }
+
+        .card-id {
+            color: #5e6c84;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #172b4d;
+        }
+
+        .card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .card-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            background-color: #f4f5f7;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #5e6c84;
+        }
+
+        .card-badge i {
+            font-size: 10px;
+        }
+
+        .card-badge.auto-approved {
+            background-color: #e3fcef;
+            color: #006644;
+            border: 1px solid #79f2c0;
+            font-weight: 600;
+        }
+
+        .card-badge.needs-review {
+            background-color: #fff0b3;
+            color: #974f0c;
+            border: 1px solid #ffdb99;
+            font-weight: 600;
+        }
+
+        .card-assignee {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #deebff;
+            color: #0052cc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .assignee-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .assignee-group .card-assignee:nth-child(2) {
+            margin-left: -8px;
+            border: 2px solid white;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 3px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #dfe1e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #5e6c84;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+        }
+
+        .modal-close:hover {
+            background-color: #f4f5f7;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #172b4d;
+        }
+
+        .form-group label.required::after {
+            content: " *";
+            color: #de350b;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #dfe1e6;
+            border-radius: 3px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #0052cc;
+            box-shadow: 0 0 0 1px #0052cc;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #dfe1e6;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Client Detail Modal */
+        .detail-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        .detail-main {
+            min-width: 0;
+        }
+
+        .detail-sidebar {
+            border-left: 1px solid #dfe1e6;
+            padding-left: 24px;
+        }
+
+        .detail-section {
+            margin-bottom: 24px;
+        }
+
+        .detail-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #172b4d;
+        }
+
+        .detail-field {
+            margin-bottom: 12px;
+        }
+
+        .detail-field-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #5e6c84;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .detail-field-value {
+            font-size: 14px;
+            color: #172b4d;
+        }
+
+        /* Comments Section */
+        .comment-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .comment-box textarea {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #dfe1e6;
+            border-radius: 3px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .comment {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f4f5f7;
+        }
+
+        .comment:last-child {
+            border-bottom: none;
+        }
+
+        .comment-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #deebff;
+            color: #0052cc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .comment-content {
+            flex: 1;
+        }
+
+        .comment-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .comment-time {
+            font-size: 12px;
+            color: #5e6c84;
+        }
+
+        .comment-text {
+            font-size: 14px;
+            color: #172b4d;
+            line-height: 1.5;
+        }
+
+        .mention {
+            color: #0052cc;
+            background-color: #deebff;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        /* Subtasks */
+        .subtask-list {
+            list-style: none;
+        }
+
+        .subtask-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 3px;
+            margin-bottom: 4px;
+        }
+
+        .subtask-item:hover {
+            background-color: #f4f5f7;
+        }
+
+        .subtask-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .subtask-text {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .subtask-text.completed {
+            text-decoration: line-through;
+            color: #5e6c84;
+        }
+
+        .subtask-assignee {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #deebff;
+            color: #0052cc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .add-subtask {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .add-subtask input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid #dfe1e6;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.new-request { background-color: #dfd8fd; color: #403294; }
+        .status-badge.signing { background-color: #fff0b3; color: #974f0c; }
+        .status-badge.client-setup { background-color: #b3f5ff; color: #00758f; }
+        .status-badge.setup-complete { background-color: #abf5d1; color: #006644; }
+        .status-badge.inbound { background-color: #deebff; color: #0747a6; }
+        .status-badge.fulfilling { background-color: #c1f0db; color: #00875a; }
+        .status-badge.complete { background-color: #abf5d1; color: #006644; }
+        .status-badge.not-pursuing { background-color: #f4f5f7; color: #5e6c84; }
+
+        /* Client Approval Dropdown Styling */
+        #clientApprovalSelect {
+            font-weight: 600;
+        }
+
+        #clientApprovalSelect option[value="yes"] {
+            color: #00875a;
+        }
+
+        #clientApprovalSelect option[value="no"] {
+            color: #de350b;
+        }
+
+        #clientApprovalSelect option[value="auto-approve"] {
+            color: #00875a;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .board-container {
+                padding: 10px;
+            }
+
+            .column {
+                width: 260px;
+            }
+
+            .detail-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .detail-sidebar {
+                border-left: none;
+                border-top: 1px solid #dfe1e6;
+                padding-left: 0;
+                padding-top: 24px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #00875a;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 3px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            display: flex;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast.error {
+            background-color: #de350b;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1><i class="fas fa-box"></i> Sincro Fulfillment Clients</h1>
+        <div class="header-actions">
+            <button class="btn btn-success" onclick="openNewRequestModal()">
+                <i class="fas fa-plus"></i> New Request
+            </button>
+            <div class="user-info">
+                <div class="user-avatar">TO</div>
+                <span>Tony Orr</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Board Controls -->
+    <div class="board-controls">
+        <div class="search-box">
+            <input type="text" placeholder="Search clients..." id="searchInput" onkeyup="filterCards()">
+        </div>
+        <button class="btn btn-secondary" onclick="showAllCards()">
+            <i class="fas fa-eye"></i> Show All
+        </button>
+    </div>
+
+    <!-- Kanban Board -->
+    <div class="board-container">
+        <div class="board" id="board">
+            <!-- New Request Column -->
+            <div class="column" data-status="new-request">
+                <div class="column-header">
+                    <span>New Request</span>
+                    <span class="column-count">1</span>
+                </div>
+                <div class="column-cards" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                    <div class="card new-request" draggable="true" ondragstart="drag(event)" data-id="1" onclick="if(!isDragging) openClientDetail(1)">
+                        <div class="card-id">SFC-303</div>
+                        <div class="card-title">Respect Mart</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-calendar"></i> Jan 15, 2025</span>
+                            <span class="card-badge"><i class="fas fa-box"></i> eFulfillment</span>
+                            <span class="card-badge"><i class="fas fa-chart-line"></i> 500-1000/mo</span>
+                            <span class="card-badge needs-review"><i class="fas fa-clock"></i> Needs Review</span>
+                            <div class="assignee-group">
+                                <div class="card-assignee" title="Sales: Mike Johnson">MJ</div>
+                                <div class="card-assignee" title="Ops: Ian" style="background-color: #a29bfe; color: #6c5ce7;">I</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signing Column -->
+            <div class="column" data-status="signing">
+                <div class="column-header">
+                    <span>Signing</span>
+                    <span class="column-count">3</span>
+                </div>
+                <div class="column-cards" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                    <div class="card signing" draggable="true" ondragstart="drag(event)" data-id="2" onclick="if(!isDragging) openClientDetail(2)">
+                        <div class="card-id">SFC-327</div>
+                        <div class="card-title">VosCompra</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-tasks"></i> 1/2</span>
+                            <span class="card-badge auto-approved"><i class="fas fa-check"></i> Auto-Approved</span>
+                            <div class="assignee-group">
+                                <div class="card-assignee" title="Sales: Tony Orr">TO</div>
+                                <div class="card-assignee" title="Ops: Sarah Wilson" style="background-color: #ffeaa7; color: #d63031;">SW</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card signing" draggable="true" ondragstart="drag(event)" data-id="3" onclick="if(!isDragging) openClientDetail(3)">
+                        <div class="card-id">SFC-343</div>
+                        <div class="card-title">modestalife.com</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-tasks"></i> 1/2</span>
+                            <span class="card-badge auto-approved"><i class="fas fa-check"></i> Auto-Approved</span>
+                            <div class="assignee-group">
+                                <div class="card-assignee" title="Sales: Jane Smith">JS</div>
+                                <div class="card-assignee" title="Ops: Not assigned" style="background-color: #dfe1e6; color: #5e6c84;">?</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card signing" draggable="true" ondragstart="drag(event)" data-id="4" onclick="if(!isDragging) openClientDetail(4)">
+                        <div class="card-id">SFC-368</div>
+                        <div class="card-title">Magical Toys</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-tasks"></i> 1/2</span>
+                            <span class="card-badge auto-approved"><i class="fas fa-check"></i> Auto-Approved</span>
+                            <div class="assignee-group">
+                                <div class="card-assignee" title="Sales: Tony Orr">TO</div>
+                                <div class="card-assignee" title="Ops: Carlos Rodriguez" style="background-color: #81ecec; color: #00b894;">CR</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Client Setup Column -->
+            <div class="column" data-status="client-setup">
+                <div class="column-header">
+                    <span>Client Setup</span>
+                    <span class="column-count">2</span>
+                </div>
+                <div class="column-cards" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                    <div class="card client-setup" draggable="true" ondragstart="drag(event)" data-id="5" onclick="if(!isDragging) openClientDetail(5)">
+                        <div class="card-id">SFC-386</div>
+                        <div class="card-title">Soundskrit</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-tasks"></i> 2/4</span>
+                            <span class="card-badge"><i class="fas fa-comments"></i> 3</span>
+                            <div class="assignee-group">
+                                <div class="card-assignee" title="Sales: Tony Orr">TO</div>
+                                <div class="card-assignee" title="Ops: Sarah Wilson" style="background-color: #ffeaa7; color: #d63031;">SW</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card client-setup" draggable="true" ondragstart="drag(event)" data-id="6" onclick="if(!isDragging) openClientDetail(6)">
+                        <div class="card-id">SFC-271</div>
+                        <div class="card-title">Looktech</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-tasks"></i> 1/3</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Setup Complete Column -->
+            <div class="column" data-status="setup-complete">
+                <div class="column-header">
+                    <span>Setup Complete - Pending Inbound</span>
+                    <span class="column-count">6</span>
+                </div>
+                <div class="column-cards" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                    <div class="card setup-complete" draggable="true" ondragstart="drag(event)" data-id="7" onclick="if(!isDragging) openClientDetail(7)">
+                        <div class="card-id">SFC-274</div>
+                        <div class="card-title">PICO PICO</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-tasks"></i> 4/5</span>
+                            <div class="assignee-group">
+                                <div class="card-assignee" title="Sales: Tony Orr">TO</div>
+                                <div class="card-assignee" title="Ops: Emily Chen" style="background-color: #fab1a0; color: #e17055;">EC</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card setup-complete" draggable="true" ondragstart="drag(event)" data-id="8" onclick="if(!isDragging) openClientDetail(8)">
+                        <div class="card-id">SFC-267</div>
+                        <div class="card-title">Silverstone Creations</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-tasks"></i> 4/5</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inbound Column -->
+            <div class="column" data-status="inbound">
+                <div class="column-header">
+                    <span>Inbound</span>
+                    <span class="column-count">1</span>
+                </div>
+                <div class="column-cards" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                    <div class="card inbound" draggable="true" ondragstart="drag(event)" data-id="9" onclick="if(!isDragging) openClientDetail(9)">
+                        <div class="card-id">SFC-371</div>
+                        <div class="card-title">Skin Diamond</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-tasks"></i> 4/6</span>
+                            <div class="assignee-group">
+                                <div class="card-assignee" title="Sales: Mike Johnson">MJ</div>
+                                <div class="card-assignee" title="Ops: Sarah Wilson" style="background-color: #ffeaa7; color: #d63031;">SW</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fulfilling Column -->
+            <div class="column" data-status="fulfilling">
+                <div class="column-header">
+                    <span>Fulfilling</span>
+                    <span class="column-count">21</span>
+                </div>
+                <div class="column-cards" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                    <div class="card fulfilling" draggable="true" ondragstart="drag(event)" data-id="10" onclick="if(!isDragging) openClientDetail(10)">
+                        <div class="card-id">SFC-184</div>
+                        <div class="card-title">Succubus Publishing</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-tasks"></i> 4/4</span>
+                        </div>
+                    </div>
+                    <div class="card fulfilling" draggable="true" ondragstart="drag(event)" data-id="11" onclick="if(!isDragging) openClientDetail(11)">
+                        <div class="card-id">SFC-177</div>
+                        <div class="card-title">Nighthawk Interactive</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-tasks"></i> 3/3</span>
+                        </div>
+                    </div>
+                    <div class="card fulfilling" draggable="true" ondragstart="drag(event)" data-id="12" onclick="if(!isDragging) openClientDetail(12)">
+                        <div class="card-id">SFC-149</div>
+                        <div class="card-title">Wiggles3D</div>
+                        <div class="card-meta">
+                            <span class="card-badge"><i class="fas fa-comments"></i> 5</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Complete Column -->
+            <div class="column" data-status="complete">
+                <div class="column-header">
+                    <span>Complete</span>
+                    <span class="column-count">0</span>
+                </div>
+                <div class="column-cards" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                    <!-- Empty for now -->
+                </div>
+            </div>
+
+            <!-- Not Pursuing Column -->
+            <div class="column" data-status="not-pursuing">
+                <div class="column-header">
+                    <span>Not Pursuing</span>
+                    <span class="column-count">0</span>
+                </div>
+                <div class="column-cards" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
+                    <!-- Empty for now -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Request Modal -->
+    <div class="modal" id="newRequestModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>New Fulfillment Request</h2>
+                <button class="modal-close" onclick="closeModal('newRequestModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="newRequestForm" onsubmit="submitNewRequest(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required">Client Email</label>
+                            <input type="email" name="email" required placeholder="client@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="required">Client Name</label>
+                            <input type="text" name="clientName" required placeholder="Company Name">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required">Sales Team Member</label>
+                            <select name="salesTeam" required>
+                                <option value="">Select Sales Rep...</option>
+                                <option value="Tony Orr">Tony Orr</option>
+                                <option value="John Doe">John Doe</option>
+                                <option value="Jane Smith">Jane Smith</option>
+                                <option value="Mike Johnson">Mike Johnson</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <!-- Fulfillment Ops auto-assigned to Ian - hidden field -->
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Client ID</label>
+                            <input type="text" name="clientId" placeholder="Optional ID">
+                        </div>
+                        <div class="form-group">
+                            <label class="required">Est. Inbound Date</label>
+                            <input type="date" name="inboundDate" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required">Client Type</label>
+                            <select name="clientType" required>
+                                <option value="">Select...</option>
+                                <option value="eFulfillment">eFulfillment</option>
+                                <option value="Crowd Funding">Crowd Funding</option>
+                                <option value="Dropship">Dropship</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="required">Average Orders (Per Month)</label>
+                            <select name="avgOrders" required>
+                                <option value="">Select...</option>
+                                <option value="<100">&lt;100</option>
+                                <option value="100-200">100-200</option>
+                                <option value="200-500">200-500</option>
+                                <option value="500-1000">500-1000</option>
+                                <option value="1000-3000">1000-3000</option>
+                                <option value=">3000">&gt;3000</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required">Number of Unique SKUs</label>
+                            <select name="numSkus" required>
+                                <option value="">Select...</option>
+                                <option value="<25">&lt;25</option>
+                                <option value="25-50">25-50</option>
+                                <option value="50-100">50-100</option>
+                                <option value=">100">&gt;100</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="required">Battery Included or DG Good</label>
+                            <select name="battery" required>
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>SKU &gt; 25lbs</label>
+                            <select name="heavySku">
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="required">Est. Number of Pallets Stored</label>
+                            <select name="numPallets" required>
+                                <option value="">Select...</option>
+                                <option value="<20">&lt;20</option>
+                                <option value="20-50">20-50</option>
+                                <option value="50-100">50-100</option>
+                                <option value=">100">&gt;100</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="required">Special Packaging</label>
+                            <select name="specialPackaging" required>
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                                <option value="N/A">N/A</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="required">Will Items Need to be Barcoded?</label>
+                            <select name="barcoding" required>
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                                <option value="N/A">N/A</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="required">Additional Info</label>
+                        <textarea name="additionalInfo" required placeholder="- If there are special packaging requirements, please detail&#10;- Any other useful information?&#10;- N/A if none"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('newRequestModal')">Cancel</button>
+                <button type="submit" form="newRequestForm" class="btn btn-success">Submit Request</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Detail Modal -->
+    <div class="modal" id="clientDetailModal">
+        <div class="modal-content" style="max-width: 1200px;">
+            <div class="modal-header">
+                <div>
+                    <span class="card-id">SFC-386</span>
+                    <h2>Soundskrit</h2>
+                </div>
+                <button class="modal-close" onclick="closeModal('clientDetailModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-layout">
+                    <!-- Main Content -->
+                    <div class="detail-main">
+                        <!-- Description -->
+                        <div class="detail-section">
+                            <h3>Description</h3>
+                            <p>Special packaging requirements: Custom branded boxes with foam inserts. Items need to be individually wrapped.</p>
+                        </div>
+
+                        <!-- Subtasks -->
+                        <div class="detail-section">
+                            <h3>Subtasks</h3>
+                            <ul class="subtask-list">
+                                <li class="subtask-item">
+                                    <input type="checkbox" class="subtask-checkbox" checked>
+                                    <span class="subtask-text completed">Contract signed</span>
+                                    <div class="subtask-assignee">TO</div>
+                                </li>
+                                <li class="subtask-item">
+                                    <input type="checkbox" class="subtask-checkbox" checked>
+                                    <span class="subtask-text completed">Deposit received</span>
+                                    <div class="subtask-assignee">TO</div>
+                                </li>
+                                <li class="subtask-item">
+                                    <input type="checkbox" class="subtask-checkbox">
+                                    <span class="subtask-text">WMS setup complete</span>
+                                    <div class="subtask-assignee">JD</div>
+                                </li>
+                                <li class="subtask-item">
+                                    <input type="checkbox" class="subtask-checkbox">
+                                    <span class="subtask-text">Shipping integrations configured</span>
+                                    <div class="subtask-assignee">MR</div>
+                                </li>
+                            </ul>
+                            <div class="add-subtask">
+                                <input type="text" placeholder="Add a subtask...">
+                                <button class="btn btn-primary">Add</button>
+                            </div>
+                        </div>
+
+                        <!-- Comments -->
+                        <div class="detail-section">
+                            <h3>Comments</h3>
+                            <div class="comment-box">
+                                <textarea placeholder="Add a comment... Use @ to mention someone"></textarea>
+                                <button class="btn btn-primary">Comment</button>
+                            </div>
+
+                            <div class="comment">
+                                <div class="comment-avatar">TO</div>
+                                <div class="comment-content">
+                                    <div class="comment-header">
+                                        <span class="comment-author">Tony Orr</span>
+                                        <span class="comment-time">2 hours ago</span>
+                                    </div>
+                                    <div class="comment-text">
+                                        <span class="mention">@John Doe</span> Can you confirm the WMS setup is ready for next week?
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="comment">
+                                <div class="comment-avatar">JD</div>
+                                <div class="comment-content">
+                                    <div class="comment-header">
+                                        <span class="comment-author">John Doe</span>
+                                        <span class="comment-time">1 hour ago</span>
+                                    </div>
+                                    <div class="comment-text">
+                                        Yes, we'll have it ready by Monday. Just waiting on the SKU list from the client.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="comment">
+                                <div class="comment-avatar">TO</div>
+                                <div class="comment-content">
+                                    <div class="comment-header">
+                                        <span class="comment-author">Tony Orr</span>
+                                        <span class="comment-time">30 minutes ago</span>
+                                    </div>
+                                    <div class="comment-text">
+                                        Perfect! I'll follow up with the client today.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="detail-sidebar">
+                        <!-- Client Approval -->
+                        <div class="detail-section">
+                            <h3>Client Approved</h3>
+                            <select id="clientApprovalSelect" onchange="handleClientApproval(this.value)" style="width: 100%; padding: 8px; border: 1px solid #dfe1e6; border-radius: 3px; font-size: 14px;">
+                                <option value="">Pending Review...</option>
+                                <option value="auto-approve">Auto Approved</option>
+                                <option value="yes">Yes - Approved</option>
+                                <option value="no">No - Not Pursuing</option>
+                            </select>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="detail-section">
+                            <h3>Status</h3>
+                            <select class="form-group" style="width: 100%; padding: 8px;">
+                                <option value="new-request">New Request</option>
+                                <option value="signing">Signing</option>
+                                <option value="client-setup" selected>Client Setup</option>
+                                <option value="setup-complete">Setup Complete</option>
+                                <option value="inbound">Inbound</option>
+                                <option value="fulfilling">Fulfilling</option>
+                                <option value="complete">Complete</option>
+                                <option value="not-pursuing">Not Pursuing</option>
+                            </select>
+                        </div>
+
+                        <!-- Assignment Fields -->
+                        <div class="detail-section">
+                            <h3>Assigned To</h3>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Sales Team</div>
+                                <select style="width: 100%; padding: 6px 10px; border: 1px solid #dfe1e6; border-radius: 3px; margin-top: 4px;">
+                                    <option value="">Select Sales Rep...</option>
+                                    <option value="Tony Orr" selected>Tony Orr</option>
+                                    <option value="John Doe">John Doe</option>
+                                    <option value="Jane Smith">Jane Smith</option>
+                                    <option value="Mike Johnson">Mike Johnson</option>
+                                </select>
+                            </div>
+
+                            <div class="detail-field" style="margin-top: 12px;">
+                                <div class="detail-field-label">Fulfillment Ops</div>
+                                <select style="width: 100%; padding: 6px 10px; border: 1px solid #dfe1e6; border-radius: 3px; margin-top: 4px;">
+                                    <option value="">Not assigned yet...</option>
+                                    <option value="Ian">Ian</option>
+                                    <option value="Tony Orr">Tony Orr</option>
+                                    <option value="Sarah Wilson" selected>Sarah Wilson</option>
+                                    <option value="Carlos Rodriguez">Carlos Rodriguez</option>
+                                    <option value="Emily Chen">Emily Chen</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Client Details -->
+                        <div class="detail-section">
+                            <h3>Client Details</h3>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Email</div>
+                                <div class="detail-field-value">contact@soundskrit.com</div>
+                            </div>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Client ID</div>
+                                <div class="detail-field-value">SDK-2025</div>
+                            </div>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Est. Inbound Date</div>
+                                <div class="detail-field-value">Jan 20, 2025</div>
+                            </div>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Client Type</div>
+                                <div class="detail-field-value">eFulfillment</div>
+                            </div>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Avg Orders/Month</div>
+                                <div class="detail-field-value">500-1000</div>
+                            </div>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Unique SKUs</div>
+                                <div class="detail-field-value">25-50</div>
+                            </div>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Battery/DG</div>
+                                <div class="detail-field-value">No</div>
+                            </div>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Heavy SKU (&gt;25lbs)</div>
+                                <div class="detail-field-value">Yes</div>
+                            </div>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Est. Pallets</div>
+                                <div class="detail-field-value">20-50</div>
+                            </div>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Special Packaging</div>
+                                <div class="detail-field-value">Yes</div>
+                            </div>
+
+                            <div class="detail-field">
+                                <div class="detail-field-label">Barcoding</div>
+                                <div class="detail-field-value">Yes</div>
+                            </div>
+                        </div>
+
+                        <!-- Created -->
+                        <div class="detail-section">
+                            <div class="detail-field">
+                                <div class="detail-field-label">Created</div>
+                                <div class="detail-field-value">Jan 10, 2025 at 2:45 PM</div>
+                            </div>
+                            <div class="detail-field">
+                                <div class="detail-field-label">Updated</div>
+                                <div class="detail-field-value">30 minutes ago</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="deleteClient()">Delete</button>
+                <button class="btn btn-secondary" onclick="closeModal('clientDetailModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // Mock data
+        let clients = [
+            {
+                id: 1,
+                clientId: 'SFC-303',
+                name: 'Respect Mart',
+                status: 'new-request',
+                email: 'contact@respectmart.com',
+                inboundDate: '2025-01-15',
+                clientType: 'eFulfillment',
+                avgOrders: '500-1000',
+                comments: [],
+                subtasks: []
+            }
+            // Add more mock clients as needed
+        ];
+
+        // Open New Request Modal
+        function openNewRequestModal() {
+            document.getElementById('newRequestModal').classList.add('active');
+        }
+
+        // Close Modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // Auto-Approve Logic (matching N8N workflow)
+        function checkAutoApproval(data) {
+            // Criteria from N8N workflow - ANY of these triggers auto-approval
+            const autoApprovalCriteria = [
+                data.battery === 'Yes',
+                data.numPallets === '50-100',
+                data.numPallets === '>100',
+                data.numSkus === '50-100',
+                data.numSkus === '>100',
+                data.avgOrders === '>3000',
+                data.clientType === 'Dropship'
+            ];
+
+            return autoApprovalCriteria.some(condition => condition === true);
+        }
+
+        // Submit New Request
+        function submitNewRequest(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = Object.fromEntries(formData.entries());
+
+            console.log('New request submitted:', data);
+
+            // Check if auto-approved
+            const isAutoApproved = checkAutoApproval(data);
+            const status = isAutoApproved ? 'signing' : 'new-request';
+
+            // Generate client ID
+            const clientId = 'SFC-' + Math.floor(Math.random() * 900 + 100);
+
+            // Create new client tile
+            // All new requests auto-assigned to Ian for fulfillment ops
+            const newCard = createClientCard({
+                id: Date.now(),
+                clientId: clientId,
+                name: data.clientName,
+                status: status,
+                email: data.email,
+                inboundDate: data.inboundDate,
+                clientType: data.clientType,
+                avgOrders: data.avgOrders,
+                numSkus: data.numSkus,
+                battery: data.battery,
+                heavySku: data.heavySku,
+                numPallets: data.numPallets,
+                specialPackaging: data.specialPackaging,
+                barcoding: data.barcoding,
+                additionalInfo: data.additionalInfo,
+                autoApproved: isAutoApproved,
+                salesTeam: data.salesTeam,
+                fulfillmentOps: 'Ian'
+            });
+
+            // Add to appropriate column
+            const targetColumn = document.querySelector(`.column[data-status="${status}"] .column-cards`);
+            targetColumn.insertBefore(newCard, targetColumn.firstChild);
+
+            // Update column count
+            updateColumnCounts();
+
+            // Show success message
+            if (isAutoApproved) {
+                showToast('Request submitted and AUTO-APPROVED! Moved to Signing.', 'success');
+            } else {
+                showToast('Request submitted. Awaiting manual review.', 'success');
+            }
+
+            // Close modal and reset form
+            closeModal('newRequestModal');
+            event.target.reset();
+        }
+
+        // Create Client Card Element
+        function createClientCard(client) {
+            const card = document.createElement('div');
+            card.className = `card ${client.status}`;
+            card.draggable = true;
+            card.setAttribute('data-id', client.id);
+            card.ondragstart = drag;
+
+            const formattedDate = new Date(client.inboundDate).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+
+            let approvalBadge = '';
+            if (client.autoApproved) {
+                approvalBadge = '<span class="card-badge auto-approved"><i class="fas fa-check"></i> Auto-Approved</span>';
+            } else if (client.status === 'new-request') {
+                approvalBadge = '<span class="card-badge needs-review"><i class="fas fa-clock"></i> Needs Review</span>';
+            }
+
+            card.innerHTML = `
+                <div class="card-id">${client.clientId}</div>
+                <div class="card-title">${client.name}</div>
+                <div class="card-meta">
+                    <span class="card-badge"><i class="fas fa-calendar"></i> ${formattedDate}</span>
+                    <span class="card-badge"><i class="fas fa-box"></i> ${client.clientType}</span>
+                    <span class="card-badge"><i class="fas fa-chart-line"></i> ${client.avgOrders}/mo</span>
+                    ${approvalBadge}
+                </div>
+            `;
+
+            card.addEventListener('click', function(e) {
+                // Only open detail if not dragging
+                if (!isDragging) {
+                    openClientDetail(client.id);
+                }
+            });
+
+            return card;
+        }
+
+        // Open Client Detail Modal
+        let currentClientCard = null;
+
+        function openClientDetail(clientId) {
+            // Find the card element
+            currentClientCard = document.querySelector(`.card[data-id="${clientId}"]`);
+
+            // Determine approval status based on card status
+            const approvalSelect = document.getElementById('clientApprovalSelect');
+            if (currentClientCard) {
+                const hasAutoApproved = currentClientCard.querySelector('.auto-approved');
+                const currentStatus = currentClientCard.className.split(' ')[1];
+
+                if (hasAutoApproved) {
+                    approvalSelect.value = 'auto-approve';
+                } else if (currentStatus === 'signing') {
+                    approvalSelect.value = 'yes';
+                } else if (currentStatus === 'not-pursuing') {
+                    approvalSelect.value = 'no';
+                } else {
+                    approvalSelect.value = '';
+                }
+
+                // Load subtasks if they exist
+                loadSubtasksIntoModal(currentClientCard);
+            }
+
+            document.getElementById('clientDetailModal').classList.add('active');
+        }
+
+        // Load subtasks into modal
+        function loadSubtasksIntoModal(card) {
+            const subtasksData = card.getAttribute('data-subtasks');
+            const subtaskList = document.querySelector('.subtask-list');
+
+            // Clear existing subtasks in modal (except the hardcoded demo ones)
+            // For now, we'll prepend the auto-subtasks
+
+            if (subtasksData) {
+                try {
+                    const subtasks = JSON.parse(subtasksData);
+
+                    // Clear the list first
+                    subtaskList.innerHTML = '';
+
+                    subtasks.forEach(subtask => {
+                        const li = document.createElement('li');
+                        li.className = 'subtask-item';
+                        li.innerHTML = `
+                            <input type="checkbox" class="subtask-checkbox" ${subtask.completed ? 'checked' : ''} onchange="toggleSubtask(${subtask.id})">
+                            <span class="subtask-text ${subtask.completed ? 'completed' : ''}">${subtask.text}</span>
+                            <div class="subtask-assignee" title="${subtask.assignee}">${getInitials(subtask.assignee)}</div>
+                        `;
+                        subtaskList.appendChild(li);
+                    });
+                } catch (e) {
+                    console.error('Error loading subtasks:', e);
+                }
+            } else {
+                // Load default demo subtasks if no auto-subtasks exist
+                subtaskList.innerHTML = `
+                    <li class="subtask-item">
+                        <input type="checkbox" class="subtask-checkbox" checked>
+                        <span class="subtask-text completed">Contract signed</span>
+                        <div class="subtask-assignee">TO</div>
+                    </li>
+                    <li class="subtask-item">
+                        <input type="checkbox" class="subtask-checkbox" checked>
+                        <span class="subtask-text completed">Deposit received</span>
+                        <div class="subtask-assignee">TO</div>
+                    </li>
+                    <li class="subtask-item">
+                        <input type="checkbox" class="subtask-checkbox">
+                        <span class="subtask-text">WMS setup complete</span>
+                        <div class="subtask-assignee">JD</div>
+                    </li>
+                    <li class="subtask-item">
+                        <input type="checkbox" class="subtask-checkbox">
+                        <span class="subtask-text">Shipping integrations configured</span>
+                        <div class="subtask-assignee">MR</div>
+                    </li>
+                `;
+            }
+        }
+
+        // Get initials from name
+        function getInitials(name) {
+            if (!name || name === 'Unassigned') return '?';
+            return name.split(' ').map(n => n[0]).join('').toUpperCase();
+        }
+
+        // Toggle subtask completion
+        function toggleSubtask(subtaskId) {
+            if (!currentClientCard) return;
+
+            const subtasksData = currentClientCard.getAttribute('data-subtasks');
+            if (subtasksData) {
+                try {
+                    const subtasks = JSON.parse(subtasksData);
+                    const subtask = subtasks.find(s => s.id === subtaskId);
+                    if (subtask) {
+                        subtask.completed = !subtask.completed;
+                        currentClientCard.setAttribute('data-subtasks', JSON.stringify(subtasks));
+
+                        // Update task count badge
+                        const completedCount = subtasks.filter(s => s.completed).length;
+                        const totalCount = subtasks.length;
+                        const taskBadge = currentClientCard.querySelector('.card-badge i.fa-tasks')?.parentElement;
+                        if (taskBadge) {
+                            taskBadge.innerHTML = `<i class="fas fa-tasks"></i> ${completedCount}/${totalCount}`;
+                        }
+
+                        // Reload subtasks in modal
+                        loadSubtasksIntoModal(currentClientCard);
+                    }
+                } catch (e) {
+                    console.error('Error toggling subtask:', e);
+                }
+            }
+        }
+
+        // Handle Client Approval Change
+        function handleClientApproval(value) {
+            if (!currentClientCard) return;
+
+            let newStatus = '';
+            let message = '';
+
+            switch(value) {
+                case 'yes':
+                    newStatus = 'signing';
+                    message = 'Client approved! Moved to Signing.';
+                    break;
+                case 'no':
+                    newStatus = 'not-pursuing';
+                    message = 'Client marked as not pursuing.';
+                    break;
+                case 'auto-approve':
+                    newStatus = 'signing';
+                    message = 'Auto-approved! Moved to Signing.';
+                    break;
+                default:
+                    return;
+            }
+
+            if (newStatus) {
+                // Get current status
+                const oldStatus = currentClientCard.className.split(' ')[1];
+
+                // Update card status class
+                currentClientCard.classList.remove(oldStatus);
+                currentClientCard.classList.add(newStatus);
+
+                // Move card to new column
+                const targetColumn = document.querySelector(`.column[data-status="${newStatus}"] .column-cards`);
+                targetColumn.insertBefore(currentClientCard, targetColumn.firstChild);
+
+                // Check if approved and moved to signing, then to client-setup
+                // Auto-subtasks created when moving to client-setup
+                if (newStatus === 'signing') {
+                    // After approval, can be manually moved to client-setup where subtasks are created
+                }
+
+                // Update column counts
+                updateColumnCounts();
+
+                // Show notification
+                showToast(message, value === 'no' ? 'error' : 'success');
+
+                // Close modal
+                setTimeout(() => {
+                    closeModal('clientDetailModal');
+                }, 500);
+            }
+        }
+
+        // Delete Client
+        function deleteClient() {
+            if (confirm('Are you sure you want to delete this client?')) {
+                showToast('Client deleted', 'error');
+                closeModal('clientDetailModal');
+            }
+        }
+
+        // Filter Cards
+        function filterCards() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const cards = document.querySelectorAll('.card');
+
+            cards.forEach(card => {
+                const title = card.querySelector('.card-title').textContent.toLowerCase();
+                const id = card.querySelector('.card-id').textContent.toLowerCase();
+
+                if (title.includes(searchTerm) || id.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Show All Cards
+        function showAllCards() {
+            document.getElementById('searchInput').value = '';
+            document.querySelectorAll('.card').forEach(card => {
+                card.style.display = 'block';
+            });
+        }
+
+        // Drag and Drop Functions
+        let draggedCard = null;
+        let isDragging = false;
+        let dragStartTime = 0;
+
+        function drag(event) {
+            // Only start drag if it's been a moment (prevents accidental drags on clicks)
+            dragStartTime = Date.now();
+
+            draggedCard = event.target.closest('.card');
+            if (!draggedCard) return;
+
+            setTimeout(() => {
+                if (draggedCard) {
+                    isDragging = true;
+                    draggedCard.classList.add('dragging');
+                }
+            }, 50);
+
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/html', draggedCard.innerHTML);
+
+            // Add dragend listener
+            draggedCard.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                setTimeout(() => {
+                    isDragging = false;
+                    draggedCard = null;
+                }, 100);
+            }, { once: true });
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+
+            const columnCards = event.currentTarget;
+            if (!columnCards.classList.contains('drag-over')) {
+                columnCards.classList.add('drag-over');
+            }
+        }
+
+        function dragLeave(event) {
+            event.currentTarget.classList.remove('drag-over');
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            const columnCards = event.currentTarget;
+            columnCards.classList.remove('drag-over');
+
+            if (draggedCard) {
+                // Get the new status from the column
+                const newStatus = columnCards.closest('.column').getAttribute('data-status');
+                const oldStatus = draggedCard.className.split(' ')[1];
+
+                // Update card status class
+                draggedCard.classList.remove(oldStatus);
+                draggedCard.classList.add(newStatus);
+
+                // Move card to new column
+                columnCards.appendChild(draggedCard);
+
+                // Remove dragging class
+                draggedCard.classList.remove('dragging');
+
+                // Check if moved to Client Setup - create auto subtasks
+                if (newStatus === 'client-setup' && oldStatus !== 'client-setup') {
+                    createAutoSubtasks(draggedCard);
+                }
+
+                // Update column counts
+                updateColumnCounts();
+
+                // Show notification
+                showToast(`Client moved to ${formatStatusName(newStatus)}`);
+
+                draggedCard = null;
+            }
+        }
+
+        // Format status name for display
+        function formatStatusName(status) {
+            const statusNames = {
+                'new-request': 'New Request',
+                'signing': 'Signing',
+                'client-setup': 'Client Setup',
+                'setup-complete': 'Setup Complete - Pending Inbound',
+                'inbound': 'Inbound',
+                'fulfilling': 'Fulfilling',
+                'complete': 'Complete',
+                'not-pursuing': 'Not Pursuing'
+            };
+            return statusNames[status] || status;
+        }
+
+        // Create Auto Subtasks when moving to Client Setup
+        function createAutoSubtasks(card) {
+            // Get assignees from card (stored in data attributes or parse from card)
+            const assigneeGroup = card.querySelector('.assignee-group');
+            if (!assigneeGroup) return;
+
+            const salesAssignee = assigneeGroup.querySelector('[title^="Sales:"]')?.getAttribute('title')?.replace('Sales: ', '') || 'Unassigned';
+            const opsAssignee = assigneeGroup.querySelector('[title^="Ops:"]')?.getAttribute('title')?.replace('Ops: ', '') || 'Unassigned';
+
+            // Store subtasks in card data attribute
+            const subtasks = [
+                {
+                    id: Date.now() + 1,
+                    text: 'Security deposit confirmation',
+                    assignee: salesAssignee,
+                    completed: false
+                },
+                {
+                    id: Date.now() + 2,
+                    text: 'WMS Setup (Client and billing parameters)',
+                    assignee: opsAssignee,
+                    completed: false
+                }
+            ];
+
+            card.setAttribute('data-subtasks', JSON.stringify(subtasks));
+
+            // Update task count badge if it exists
+            const taskBadge = card.querySelector('.card-badge i.fa-tasks')?.parentElement;
+            if (taskBadge) {
+                taskBadge.innerHTML = '<i class="fas fa-tasks"></i> 0/2';
+            } else {
+                // Add task badge if it doesn't exist
+                const metaDiv = card.querySelector('.card-meta');
+                const newBadge = document.createElement('span');
+                newBadge.className = 'card-badge';
+                newBadge.innerHTML = '<i class="fas fa-tasks"></i> 0/2';
+                metaDiv.insertBefore(newBadge, metaDiv.firstChild);
+            }
+
+            showToast('Auto-subtasks created: Security deposit confirmation & WMS Setup', 'success');
+        }
+
+        // Update column counts
+        function updateColumnCounts() {
+            document.querySelectorAll('.column').forEach(column => {
+                const count = column.querySelectorAll('.card').length;
+                column.querySelector('.column-count').textContent = count;
+            });
+        }
+
+        // Show Toast Notification
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+
+            toastMessage.textContent = message;
+            toast.className = `toast show ${type}`;
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Sincro Fulfillment Client App loaded');
+        });
+    </script>
+</body>
+</html>
