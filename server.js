@@ -152,6 +152,37 @@ app.post('/api/auth/request-access', async (req, res) => {
     }
 });
 
+// Get users by role (for dropdowns)
+app.get('/api/users/by-role', ensureAuthenticated, async (req, res) => {
+    try {
+        const { roles } = req.query; // Comma-separated roles: "Admin,Sales"
+        const { pool } = require('./database');
+
+        if (!roles) {
+            return res.status(400).json({ error: 'Roles parameter required' });
+        }
+
+        const rolesArray = roles.split(',').map(r => r.trim());
+
+        // Get approved users with specified roles, ordered by name
+        const result = await pool.query(
+            `SELECT id, name, email, role, picture
+             FROM users
+             WHERE approved = TRUE AND role = ANY($1)
+             ORDER BY name ASC`,
+            [rolesArray]
+        );
+
+        res.json({
+            success: true,
+            users: result.rows
+        });
+    } catch (error) {
+        console.error('Error fetching users by role:', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
 // ==================== CLIENT ROUTES ====================
 
 // Get all clients

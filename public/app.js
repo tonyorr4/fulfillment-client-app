@@ -677,8 +677,34 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-function openNewRequestModal() {
+async function openNewRequestModal() {
     document.getElementById('newRequestModal').classList.add('active');
+
+    // Fetch Admin and Sales users for dropdown
+    try {
+        const response = await fetch('/api/users/by-role?roles=Admin,Sales', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            const dropdown = document.querySelector('#newRequestModal select[name="salesTeam"]');
+            // Clear existing options except first
+            dropdown.innerHTML = '<option value="">Select Sales Rep...</option>';
+
+            // Add users dynamically
+            data.users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.name;
+                option.setAttribute('data-email', user.email); // Store email for future email alerts
+                option.textContent = user.name;
+                dropdown.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading sales team members:', error);
+        showToast('Failed to load sales team members', 'error');
+    }
 }
 
 function closeModal(modalId) {
