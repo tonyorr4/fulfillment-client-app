@@ -17,56 +17,42 @@ PORT=3000
 
 ### 2. DATABASE_URL
 **Variable Name:** `DATABASE_URL`
-**Value (Local Testing):** `postgresql://postgres:yourpassword@localhost:5432/fulfillment_clients`
-**Value (Railway Production):** Automatically provided by Railway when you add PostgreSQL service
-**Description:** PostgreSQL connection string
-**How to Get:**
-- **Local:** Install PostgreSQL, create database `fulfillment_clients`, use your postgres password
-- **Railway:** Click "Add PostgreSQL" in Railway dashboard, copy DATABASE_URL from Variables tab
+**Value:** See `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md` for shared Sincro database URL
+**Description:** PostgreSQL connection string - **SHARED across all Sincro apps**
+**Important:** This app uses the centralized Sincro database for user management
 
-**Example (Local):**
-```
-DATABASE_URL=postgresql://postgres:mypassword@localhost:5432/fulfillment_clients
-```
+**Why Shared Database:**
+- All Sincro apps (Maintenance, Fulfillment, Access) share the same users table
+- Access requests appear in Sincro Access App for centralized management
+- Single sign-on works across all Sincro applications
+- Users approved once get access to all Sincro apps
 
-**Example (Railway - auto-generated):**
-```
-DATABASE_URL=postgresql://postgres:IbkBfKAGmSsDYugPiQcoeIXZKWtMtuOx@maglev.proxy.rlwy.net:49885/railway
-```
+**Where to Find:**
+Check `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md` for the actual connection string.
+
+**Note:** The fulfillment app creates its own tables (clients, comments, subtasks, activity_log) in this shared database, but shares the users and access_requests tables with other Sincro apps.
 
 ---
 
 ### 3. GOOGLE_CLIENT_ID
 **Variable Name:** `GOOGLE_CLIENT_ID`
-**Value:** Your Google OAuth 2.0 Client ID
-**Description:** Client ID from Google Cloud Console
-**How to Get:**
-1. Go to https://console.cloud.google.com/
-2. Create new project or select existing
-3. Go to "APIs & Services" → "Credentials"
-4. Click "Create Credentials" → "OAuth 2.0 Client ID"
-5. Application type: "Web application"
-6. Copy the Client ID
+**Value:** See `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md` for shared Sincro OAuth Client ID
+**Description:** Google OAuth 2.0 Client ID - **SHARED across all Sincro apps**
+**Important:** This app uses the same Google OAuth credentials as all other Sincro apps
 
-**Example:**
-```
-GOOGLE_CLIENT_ID=123456789012-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com
-```
+**Where to Find:**
+Check `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md` under "OAuth Credentials" section.
 
 ---
 
 ### 4. GOOGLE_CLIENT_SECRET
 **Variable Name:** `GOOGLE_CLIENT_SECRET`
-**Value:** Your Google OAuth 2.0 Client Secret
-**Description:** Client Secret from Google Cloud Console
-**How to Get:**
-1. Same location as Client ID (Google Cloud Console → APIs & Services → Credentials)
-2. Copy the Client Secret shown after creating OAuth credentials
+**Value:** See `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md` for shared Sincro OAuth Client Secret
+**Description:** Google OAuth 2.0 Client Secret - **SHARED across all Sincro apps**
+**Important:** This app uses the same Google OAuth credentials as all other Sincro apps
 
-**Example:**
-```
-GOOGLE_CLIENT_SECRET=GOCSPX-abcdefghijklmnopqrstuvwxyz
-```
+**Where to Find:**
+Check `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md` under "OAuth Credentials" section.
 
 ---
 
@@ -217,18 +203,18 @@ PORT=3000
 NODE_ENV=development
 APP_URL=http://localhost:3000
 
-# Database (Local PostgreSQL)
-DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/fulfillment_clients
+# Shared Sincro Database (Get from OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md)
+DATABASE_URL=postgresql://...
 
-# Google OAuth
-GOOGLE_CLIENT_ID=123456789012-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-abcdefghijklmnopqrstuvwxyz
+# Shared Sincro Google OAuth (Get from OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md)
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-...
 GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
 
-# Session Security
+# Session Security (Generate unique random string)
 SESSION_SECRET=your-super-secret-random-key-change-this-to-something-secure-123456789
 
-# Admin Access
+# Admin Access (DO NOT CHANGE)
 AUTO_ADMIN_EMAIL=tony.orr@easyship.com
 
 # Email Notifications (Optional)
@@ -246,32 +232,34 @@ AUTO_ADMIN_EMAIL=tony.orr@easyship.com
 | Variable Name | Value |
 |---------------|-------|
 | `NODE_ENV` | `production` |
-| `APP_URL` | `https://your-app-name.railway.app` |
-| `GOOGLE_CLIENT_ID` | (same as local) |
-| `GOOGLE_CLIENT_SECRET` | (same as local) |
-| `GOOGLE_CALLBACK_URL` | `https://your-app-name.railway.app/auth/google/callback` |
-| `SESSION_SECRET` | (same as local) |
+| `APP_URL` | `https://fulfillment-client-app-production.up.railway.app` |
+| `DATABASE_URL` | See OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md |
+| `GOOGLE_CLIENT_ID` | See OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md |
+| `GOOGLE_CLIENT_SECRET` | See OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md |
+| `GOOGLE_CALLBACK_URL` | `https://fulfillment-client-app-production.up.railway.app/auth/google/callback` |
+| `SESSION_SECRET` | (same as local or generate new) |
 | `AUTO_ADMIN_EMAIL` | `tony.orr@easyship.com` |
 | `BREVO_API_KEY` | (optional - your Brevo key) |
 | `BREVO_SENDER_EMAIL` | (optional) `notifications@easyship.com` |
 | `ADMIN_NOTIFICATION_EMAIL` | (optional) `tony.orr@easyship.com` |
 
-**Note:** `DATABASE_URL` is automatically added by Railway when you add the PostgreSQL service.
+**IMPORTANT:**
+- DATABASE_URL points to the **shared Sincro database**, not a separate Railway PostgreSQL service
+- OAuth credentials are **shared with all Sincro apps** (Maintenance, Access, etc.)
+- All access requests will appear in your Sincro Access App
+- Get actual credential values from `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md`
 
 ---
 
 ## Setup Checklist
 
 ### Local Development
-- [ ] Install PostgreSQL locally
-- [ ] Create database: `createdb fulfillment_clients`
 - [ ] Copy `.env.example` to `.env`
-- [ ] Set `DATABASE_URL` with your local PostgreSQL credentials
-- [ ] Get Google OAuth credentials from Google Cloud Console
-- [ ] Add `http://localhost:3000/auth/google/callback` to Google authorized redirect URIs
-- [ ] Fill in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+- [ ] Use shared Sincro database URL (already provided in docs)
+- [ ] Use shared Google OAuth credentials (already provided in docs)
+- [ ] Add `http://localhost:3000/auth/google/callback` to Google authorized redirect URIs (if not already added)
 - [ ] Generate random `SESSION_SECRET`
-- [ ] Set `AUTO_ADMIN_EMAIL=tony.orr@easyship.com`
+- [ ] Confirm `AUTO_ADMIN_EMAIL=tony.orr@easyship.com`
 - [ ] Run `npm install`
 - [ ] Run `npm start`
 - [ ] Visit `http://localhost:3000`
@@ -279,11 +267,12 @@ AUTO_ADMIN_EMAIL=tony.orr@easyship.com
 ### Railway Deployment
 - [ ] Push code to GitHub
 - [ ] Create new Railway project from GitHub repo
-- [ ] Add PostgreSQL service in Railway
-- [ ] Copy all environment variables to Railway Variables tab
-- [ ] Update `GOOGLE_CALLBACK_URL` to Railway URL
+- [ ] **DO NOT add PostgreSQL service** - use shared Sincro database
+- [ ] Copy all environment variables to Railway Variables tab (use shared credentials from this doc)
+- [ ] Update `GOOGLE_CALLBACK_URL` to `https://fulfillment-client-app-production.up.railway.app/auth/google/callback`
 - [ ] Add Railway URL to Google authorized redirect URIs
 - [ ] Deploy!
+- [ ] Access requests will appear in Sincro Access App
 
 ---
 
