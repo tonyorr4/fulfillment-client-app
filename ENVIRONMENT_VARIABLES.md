@@ -21,6 +21,8 @@ PORT=3000
 **Description:** PostgreSQL connection string - **SHARED across all Sincro apps**
 **Important:** This app uses the centralized Sincro database for user management
 
+**🚨 CRITICAL: You must use the FULL connection string, not a placeholder!**
+
 **Why Shared Database:**
 - All Sincro apps (Maintenance, Fulfillment, Access) share the same users table
 - Access requests appear in Sincro Access App for centralized management
@@ -29,6 +31,19 @@ PORT=3000
 
 **Where to Find:**
 Check `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md` for the actual connection string.
+
+**Format (CORRECT):**
+```
+postgresql://postgres:PASSWORD@metro.proxy.rlwy.net:49366/railway
+```
+
+**DO NOT use these (WRONG):**
+```
+❌ See OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md
+❌ ${{Postgres.DATABASE_URL}}
+❌ base
+❌ Any placeholder text
+```
 
 **Note:** The fulfillment app creates its own tables (clients, comments, subtasks, activity_log) in this shared database, but shares the users and access_requests tables with other Sincro apps.
 

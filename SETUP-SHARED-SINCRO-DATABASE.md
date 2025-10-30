@@ -192,6 +192,31 @@ All apps see the same users, but each app has its own business logic tables.
 | `maglev.proxy.rlwy.net:49885` | Your separate Railway PostgreSQL | ❌ Access requests go here (invisible to Sincro Access App) |
 | `metro.proxy.rlwy.net:49366` | Shared Sincro database | ✅ Access requests go here (visible in Sincro Access App) |
 
+### Common Error: "getaddrinfo ENOTFOUND base"
+
+**This error means your DATABASE_URL is malformed!**
+
+**Symptoms in logs:**
+```
+Failed to start server: Error: getaddrinfo ENOTFOUND base
+hostname: 'base'
+```
+
+**Fix:**
+1. Go to Railway → fulfillment-client-app → Variables tab
+2. Check the `DATABASE_URL` value
+3. **Problem:** It's NOT the full connection string
+4. **Solution:** Replace with the COMPLETE connection string from `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md`
+
+**What NOT to put:**
+- ❌ `base`
+- ❌ `${{Postgres.DATABASE_URL}}`
+- ❌ `See OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md`
+- ❌ Any placeholder text
+
+**What TO put:**
+- ✅ The full connection string: `postgresql://postgres:PASSWORD@metro.proxy.rlwy.net:49366/railway`
+
 ### Still Having Issues?
 
 1. **Check Railway logs:**
@@ -199,17 +224,24 @@ All apps see the same users, but each app has its own business logic tables.
    - Look for: "Server running on port XXXX"
    - Any database connection errors?
 
-2. **Verify Google OAuth redirect URI:**
+2. **Verify DATABASE_URL format:**
+   ```
+   Should start with: postgresql://
+   Should contain: metro.proxy.rlwy.net:49366
+   Should NOT be: base, ${{...}}, or placeholder text
+   ```
+
+3. **Verify Google OAuth redirect URI:**
    - Go to Google Cloud Console
    - Check if `https://fulfillment-client-app-production.up.railway.app/auth/google/callback` is added
 
-3. **Test database connection manually:**
+4. **Test database connection manually:**
    ```bash
    # On your local machine, test if you can connect to shared database
    psql "postgresql://postgres:...@metro.proxy.rlwy.net:49366/railway"
    ```
 
-4. **Check if tables exist:**
+5. **Check if tables exist:**
    ```sql
    -- Should see access_requests table in shared database
    SELECT * FROM access_requests WHERE status = 'pending';

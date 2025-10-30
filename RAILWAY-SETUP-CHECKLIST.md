@@ -83,12 +83,40 @@ If using wrong database:
 
 ---
 
-## 🆘 Still Having Issues?
+## 🆘 Common Errors
+
+### Error: "getaddrinfo ENOTFOUND base"
+
+**Problem:** DATABASE_URL is malformed or not set correctly
+
+**Solution:**
+1. Go to Railway → Variables tab
+2. Check DATABASE_URL value
+3. It should be the FULL connection string starting with `postgresql://`
+4. **DO NOT** use Railway reference variables like `${{Postgres.DATABASE_URL}}`
+5. **DO NOT** put placeholder text like "See OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md"
+6. Copy the EXACT connection string from `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md`
+
+**Example CORRECT format:**
+```
+postgresql://postgres:PASSWORD@metro.proxy.rlwy.net:49366/railway
+```
+
+**Example WRONG formats:**
+```
+❌ base
+❌ ${{Postgres.DATABASE_URL}}
+❌ See OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md
+❌ postgresql://base
+```
+
+### Still Having Issues?
 
 1. Check Railway logs for errors
-2. Verify DATABASE_URL hostname is `metro.proxy.rlwy.net`
-3. Verify OAuth redirect URI is added to Google Cloud Console
-4. Read troubleshooting section in `SETUP-SHARED-SINCRO-DATABASE.md`
+2. Verify DATABASE_URL is the complete connection string
+3. Verify DATABASE_URL hostname is `metro.proxy.rlwy.net`
+4. Verify OAuth redirect URI is added to Google Cloud Console
+5. Read troubleshooting section in `SETUP-SHARED-SINCRO-DATABASE.md`
 
 ---
 
