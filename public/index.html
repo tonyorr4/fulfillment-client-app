@@ -886,11 +886,8 @@
                         <div class="form-group">
                             <label class="required">Sales Team Member</label>
                             <select name="salesTeam" required>
-                                <option value="">Select Sales Rep...</option>
-                                <option value="Tony Orr">Tony Orr</option>
-                                <option value="John Doe">John Doe</option>
-                                <option value="Jane Smith">Jane Smith</option>
-                                <option value="Mike Johnson">Mike Johnson</option>
+                                <option value="">Loading sales team members...</option>
+                                <!-- Options populated dynamically from /api/users/by-role -->
                             </select>
                         </div>
                         <div class="form-group">
@@ -1143,12 +1140,9 @@
 
                             <div class="detail-field">
                                 <div class="detail-field-label">Sales Team</div>
-                                <select style="width: 100%; padding: 6px 10px; border: 1px solid #dfe1e6; border-radius: 3px; margin-top: 4px;">
-                                    <option value="">Select Sales Rep...</option>
-                                    <option value="Tony Orr" selected>Tony Orr</option>
-                                    <option value="John Doe">John Doe</option>
-                                    <option value="Jane Smith">Jane Smith</option>
-                                    <option value="Mike Johnson">Mike Johnson</option>
+                                <select id="detailSalesTeamSelect" style="width: 100%; padding: 6px 10px; border: 1px solid #dfe1e6; border-radius: 3px; margin-top: 4px;">
+                                    <option value="">Loading...</option>
+                                    <!-- Options populated dynamically from /api/users/by-role -->
                                 </select>
                             </div>
 
