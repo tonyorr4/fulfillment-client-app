@@ -652,9 +652,85 @@ async function addComment() {
 
 // Update sidebar fields
 function updateSidebarFields(client) {
-    // This function updates all the sidebar fields in the modal
-    // For now, we'll keep the hardcoded values in HTML and just update key fields
-    // In a full implementation, you'd dynamically populate all fields here
+    try {
+        console.log('📝 Updating sidebar fields with client data:', client);
+
+        // Email
+        const emailEl = document.getElementById('detailEmail');
+        if (emailEl) emailEl.textContent = client.client_email || 'Not provided';
+
+        // Client ID (already set in header, but also in details)
+        const clientIdEl = document.getElementById('detailClientId');
+        if (clientIdEl) clientIdEl.textContent = client.client_id || '-';
+
+        // Est. Inbound Date
+        const inboundDateEl = document.getElementById('detailInboundDate');
+        if (inboundDateEl && client.est_inbound_date) {
+            const formattedDate = new Date(client.est_inbound_date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            inboundDateEl.textContent = formattedDate;
+        }
+
+        // Client Type
+        const clientTypeEl = document.getElementById('detailClientType');
+        if (clientTypeEl) clientTypeEl.textContent = client.client_type || '-';
+
+        // Avg Orders/Month
+        const avgOrdersEl = document.getElementById('detailAvgOrders');
+        if (avgOrdersEl) avgOrdersEl.textContent = client.avg_orders || '-';
+
+        // Unique SKUs
+        const numSkusEl = document.getElementById('detailNumSkus');
+        if (numSkusEl) numSkusEl.textContent = client.num_skus || '-';
+
+        // Battery/DG
+        const batteryEl = document.getElementById('detailBattery');
+        if (batteryEl) batteryEl.textContent = client.battery || '-';
+
+        // Heavy SKU
+        const heavySkuEl = document.getElementById('detailHeavySku');
+        if (heavySkuEl) heavySkuEl.textContent = client.heavy_sku || 'Not specified';
+
+        // Est. Pallets
+        const numPalletsEl = document.getElementById('detailNumPallets');
+        if (numPalletsEl) numPalletsEl.textContent = client.num_pallets || '-';
+
+        // Special Packaging
+        const specialPackagingEl = document.getElementById('detailSpecialPackaging');
+        if (specialPackagingEl) specialPackagingEl.textContent = client.special_packaging || '-';
+
+        // Barcoding
+        const barcodingEl = document.getElementById('detailBarcoding');
+        if (barcodingEl) barcodingEl.textContent = client.barcoding || '-';
+
+        // Created date
+        const createdEl = document.getElementById('detailCreated');
+        if (createdEl && client.created_at) {
+            const createdDate = new Date(client.created_at).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+            createdEl.textContent = createdDate;
+        }
+
+        // Updated date
+        const updatedEl = document.getElementById('detailUpdated');
+        if (updatedEl && client.updated_at) {
+            const updatedDate = new Date(client.updated_at);
+            updatedEl.textContent = formatTimeAgo(updatedDate);
+        }
+
+        console.log('✓ Sidebar fields updated successfully');
+    } catch (error) {
+        console.error('Error updating sidebar fields:', error);
+    }
 }
 
 // ==================== DRAG AND DROP ====================
