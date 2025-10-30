@@ -4,6 +4,37 @@
 
 A Jira-like Kanban board application for managing fulfillment clients with automated workflows, subtasks, and team collaboration.
 
+---
+
+## 🚨 CRITICAL: Shared Sincro Database Required
+
+**This app is part of the Sincro OAuth ecosystem and MUST use the shared database.**
+
+### ⚠️ Railway Setup - READ THIS FIRST
+
+**📋 CHECKLIST:** See **[RAILWAY-SETUP-CHECKLIST.md](./RAILWAY-SETUP-CHECKLIST.md)** for complete setup steps
+
+If deploying to Railway, you **MUST** update these environment variables to use shared Sincro credentials:
+
+1. **`DATABASE_URL`** → Shared Sincro database (NOT a separate PostgreSQL service)
+   - ✅ **CORRECT:** Hostname = `metro.proxy.rlwy.net`
+   - ❌ **WRONG:** Hostname = `maglev.proxy.rlwy.net`
+2. **`GOOGLE_CLIENT_ID`** → Shared Sincro OAuth credentials
+3. **`GOOGLE_CLIENT_SECRET`** → Shared Sincro OAuth credentials
+4. **`AUTO_ADMIN_EMAIL`** → `tony.orr@easyship.com`
+
+**📖 Get actual values from:** `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md`
+
+**📋 Detailed guide:** See `SETUP-SHARED-SINCRO-DATABASE.md` in this folder
+
+### Why This Matters:
+- ✅ Access requests appear in Sincro Access App
+- ✅ Centralized user management across all Sincro apps
+- ✅ Single sign-on works across Maintenance, Fulfillment, and Access apps
+- ❌ Without this: Access requests go to the wrong database and won't be visible
+
+---
+
 ## Features
 
 - **Kanban Board**: 8-column workflow from New Request to Complete

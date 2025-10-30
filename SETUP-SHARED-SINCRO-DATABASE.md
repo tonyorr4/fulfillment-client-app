@@ -1,11 +1,22 @@
-# Setup: Connect to Shared Sincro Database
+# 🚨 CRITICAL: Setup Shared Sincro Database
 
 **Date:** October 30, 2025
 **Purpose:** Connect Fulfillment Client App to shared Sincro OAuth ecosystem
+**Status:** ⚠️ MANUAL RAILWAY CONFIGURATION REQUIRED
 
 ---
 
-## ✅ What's Been Done
+## ⚠️ PROBLEM: Access Requests Not Appearing?
+
+**Symptom:** Access requests submitted to fulfillment app don't show up in Sincro Access App
+
+**Root Cause:** Fulfillment app is using its own separate database instead of the shared Sincro database
+
+**Solution:** Update Railway environment variables (instructions below)
+
+---
+
+## ✅ What's Been Done (Code-side)
 
 1. **Updated authentication code** to use proper Sincro OAuth access control
 2. **Updated ENVIRONMENT_VARIABLES.md** with shared database and OAuth credentials
@@ -14,7 +25,7 @@
 
 ---
 
-## 🔧 Required Actions
+## 🔧 REQUIRED MANUAL ACTIONS (DO THIS NOW)
 
 ### 1. Add OAuth Redirect URI to Google Cloud Console
 
@@ -35,29 +46,49 @@
 
 ---
 
-### 2. Update Railway Environment Variables
+### 2. 🚨 UPDATE RAILWAY ENVIRONMENT VARIABLES (MOST IMPORTANT)
 
-In Railway dashboard → Your fulfillment app → Variables tab:
+**THIS IS THE CRITICAL STEP - Without this, access requests won't appear in Sincro Access App!**
 
-**Update these variables:**
+#### Steps:
 
-Get the actual values from `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md`
+1. **Go to Railway Dashboard:**
+   - Navigate to: https://railway.app/dashboard
+   - Click on your **fulfillment-client-app** service
+   - Click **"Variables"** tab
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | Change from separate Railway PostgreSQL to shared Sincro database URL |
-| `GOOGLE_CLIENT_ID` | Update to shared Sincro OAuth Client ID |
-| `GOOGLE_CLIENT_SECRET` | Update to shared Sincro OAuth Client Secret |
+2. **Find These 3 Variables and Update Them:**
 
-**Add these if missing:**
+   Get the actual values from: `C:\Users\Tony\automations\OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md`
 
-| Variable | Value |
-|----------|-------|
-| `AUTO_ADMIN_EMAIL` | `tony.orr@easyship.com` |
+   | Variable | What to Change | Why |
+   |----------|----------------|-----|
+   | `DATABASE_URL` | Change from `maglev.proxy...` to `metro.proxy...` | Connects to shared Sincro database |
+   | `GOOGLE_CLIENT_ID` | Update to shared Sincro OAuth Client ID | Uses centralized OAuth |
+   | `GOOGLE_CLIENT_SECRET` | Update to shared Sincro OAuth Client Secret | Uses centralized OAuth |
 
-**After updating:**
-- Railway will automatically redeploy
-- Wait for deployment to complete (green checkmark)
+   **Current value example (WRONG):**
+   ```
+   DATABASE_URL=postgresql://postgres:...@maglev.proxy.rlwy.net:49885/railway
+   ```
+
+   **Should be (CORRECT):**
+   ```
+   DATABASE_URL=postgresql://postgres:...@metro.proxy.rlwy.net:49366/railway
+   ```
+   *(Get exact value from OAUTH-AND-ACCESS-COMPLETE-SYSTEM.md)*
+
+3. **Add if Missing:**
+
+   | Variable | Value |
+   |----------|-------|
+   | `AUTO_ADMIN_EMAIL` | `tony.orr@easyship.com` |
+
+4. **Save and Wait:**
+   - Railway will **automatically redeploy** when you change variables
+   - Go to **"Deployments"** tab
+   - Wait for green checkmark (1-2 minutes)
+   - Check logs for: "Server running on port XXXX"
 
 ---
 
@@ -142,5 +173,50 @@ All apps see the same users, but each app has its own business logic tables.
 
 ---
 
-**Status:** Waiting for manual Railway configuration
+## 🔍 Troubleshooting: How to Check If You're Using the Wrong Database
+
+### Symptom: Access requests still not appearing in Sincro Access App
+
+**Quick Check:**
+
+1. Go to Railway dashboard → fulfillment-client-app → Variables tab
+2. Look at `DATABASE_URL` value
+3. Check the hostname:
+   - ❌ **WRONG:** `maglev.proxy.rlwy.net` (your own separate database)
+   - ✅ **CORRECT:** `metro.proxy.rlwy.net` (shared Sincro database)
+
+**Database Hostname Reference:**
+
+| Hostname | What It Is | Result |
+|----------|------------|--------|
+| `maglev.proxy.rlwy.net:49885` | Your separate Railway PostgreSQL | ❌ Access requests go here (invisible to Sincro Access App) |
+| `metro.proxy.rlwy.net:49366` | Shared Sincro database | ✅ Access requests go here (visible in Sincro Access App) |
+
+### Still Having Issues?
+
+1. **Check Railway logs:**
+   - Go to Deployments → Click latest deployment → View logs
+   - Look for: "Server running on port XXXX"
+   - Any database connection errors?
+
+2. **Verify Google OAuth redirect URI:**
+   - Go to Google Cloud Console
+   - Check if `https://fulfillment-client-app-production.up.railway.app/auth/google/callback` is added
+
+3. **Test database connection manually:**
+   ```bash
+   # On your local machine, test if you can connect to shared database
+   psql "postgresql://postgres:...@metro.proxy.rlwy.net:49366/railway"
+   ```
+
+4. **Check if tables exist:**
+   ```sql
+   -- Should see access_requests table in shared database
+   SELECT * FROM access_requests WHERE status = 'pending';
+   ```
+
+---
+
+**Status:** ⚠️ Waiting for manual Railway configuration
 **Next:** Update Railway variables and test
+**Help:** If still stuck, check Railway logs and verify DATABASE_URL hostname
