@@ -68,6 +68,19 @@ async function loadAllClients() {
         }
 
         allClients = await response.json();
+
+        console.log(`📥 Received ${allClients.length} clients from API`);
+        if (allClients.length > 0) {
+            console.log('Sample client data:', {
+                client_id: allClients[0].client_id,
+                client_name: allClients[0].client_name,
+                sales_team: allClients[0].sales_team,
+                client_type: allClients[0].client_type,
+                avg_orders: allClients[0].avg_orders,
+                status: allClients[0].status
+            });
+        }
+
         renderAllClients();
 
     } catch (error) {
@@ -98,6 +111,15 @@ function renderAllClients() {
 
 // Create client card element
 function createClientCardElement(client) {
+    console.log(`🎴 Creating card for client:`, {
+        id: client.id,
+        client_id: client.client_id,
+        client_name: client.client_name,
+        sales_team: client.sales_team,
+        client_type: client.client_type,
+        avg_orders: client.avg_orders
+    });
+
     const card = document.createElement('div');
     card.className = `card ${client.status}`;
     card.draggable = true;

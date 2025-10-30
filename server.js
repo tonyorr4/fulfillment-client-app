@@ -204,6 +204,8 @@ app.get('/api/clients', ensureAuthenticated, async (req, res) => {
     try {
         const clients = await getAllClients();
 
+        console.log(`📋 Fetched ${clients.length} clients from database`);
+
         // Also get subtasks for each client
         const clientsWithSubtasks = await Promise.all(clients.map(async (client) => {
             const subtasks = await getSubtasksByClientId(client.id);
@@ -212,6 +214,13 @@ app.get('/api/clients', ensureAuthenticated, async (req, res) => {
                 subtasks
             };
         }));
+
+        console.log('📤 Sending clients to frontend - sample:', clientsWithSubtasks.length > 0 ? {
+            client_id: clientsWithSubtasks[0].client_id,
+            client_name: clientsWithSubtasks[0].client_name,
+            sales_team: clientsWithSubtasks[0].sales_team,
+            status: clientsWithSubtasks[0].status
+        } : 'No clients');
 
         res.json(clientsWithSubtasks);
     } catch (error) {
@@ -245,6 +254,8 @@ app.get('/api/clients/:id', ensureAuthenticated, async (req, res) => {
 // Create new client (fulfillment request)
 app.post('/api/clients', ensureAuthenticated, async (req, res) => {
     try {
+        console.log('📝 New client request received:', JSON.stringify(req.body, null, 2));
+
         const {
             clientName, email, clientId, inboundDate, clientType,
             avgOrders, numSkus, battery, heavySku, numPallets,
@@ -290,9 +301,12 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
             status: autoApproved ? 'signing' : 'new-request'
         };
 
+        console.log('💾 Creating client with data:', JSON.stringify(clientData, null, 2));
+
         const newClient = await createClient(clientData);
 
         console.log(`✓ Client created: ${newClient.client_id} | Status: ${newClient.status} | Auto-approved: ${autoApproved}`);
+        console.log('✓ Client data stored:', JSON.stringify(newClient, null, 2));
 
         // Log activity
         await logActivity(newClient.id, req.user.id, 'client_created', {
