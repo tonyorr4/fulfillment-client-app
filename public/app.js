@@ -1304,6 +1304,137 @@ window.onclick = function(event) {
     }
 }
 
+// ==================== EDIT MODE FUNCTIONALITY ====================
+
+let isEditMode = false;
+let originalClientData = null;
+
+// Toggle edit mode
+function toggleEditMode() {
+    isEditMode = true;
+
+    // Store original data
+    if (!currentClientCard) return;
+    originalClientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
+
+    // Hide Edit button, show Save/Cancel buttons
+    document.getElementById('editButton').style.display = 'none';
+    document.getElementById('editActions').style.display = 'flex';
+
+    // Convert fields to editable inputs
+    makeFieldsEditable();
+}
+
+// Cancel edit mode
+function cancelEditMode() {
+    isEditMode = false;
+
+    // Show Edit button, hide Save/Cancel buttons
+    document.getElementById('editButton').style.display = 'block';
+    document.getElementById('editActions').style.display = 'none';
+
+    // Restore original data
+    if (originalClientData) {
+        updateSidebarFields(originalClientData);
+    }
+
+    originalClientData = null;
+}
+
+// Make fields editable
+function makeFieldsEditable() {
+    const editableFields = [
+        { id: 'detailEmail', key: 'client_email', type: 'input', inputType: 'email' },
+        { id: 'detailClientType', key: 'client_type', type: 'select', options: ['eFulfillment', '3PL', 'Hybrid'] },
+        { id: 'detailAvgOrders', key: 'avg_orders', type: 'select', options: ['<100', '100-500', '500-1000', '1000-2500', '2500-5000', '5000+'] },
+        { id: 'detailNumSkus', key: 'num_skus', type: 'select', options: ['<25', '25-100', '100-250', '250-500', '500+'] },
+        { id: 'detailBattery', key: 'battery', type: 'select', options: ['Yes', 'No', 'N/A'] },
+        { id: 'detailHeavySku', key: 'heavy_sku', type: 'select', options: ['Yes', 'No', 'N/A'] },
+        { id: 'detailNumPallets', key: 'num_pallets', type: 'select', options: ['<20', '20-50', '50-100', '100+'] },
+        { id: 'detailSpecialPackaging', key: 'special_packaging', type: 'select', options: ['Yes', 'No', 'N/A'] },
+        { id: 'detailBarcoding', key: 'barcoding', type: 'select', options: ['Yes', 'No', 'N/A'] }
+    ];
+
+    editableFields.forEach(field => {
+        const el = document.getElementById(field.id);
+        if (!el) return;
+
+        const currentValue = el.textContent;
+
+        if (field.type === 'input') {
+            el.innerHTML = `<input type="${field.inputType || 'text'}" class="detail-field-input" value="${escapeHtml(currentValue)}" data-field="${field.key}">`;
+        } else if (field.type === 'select') {
+            let options = field.options.map(opt =>
+                `<option value="${opt}" ${opt === currentValue ? 'selected' : ''}>${opt}</option>`
+            ).join('');
+            el.innerHTML = `<select class="detail-field-select" data-field="${field.key}">${options}</select>`;
+        }
+    });
+
+    // Additional Info textarea (find it by looking for the field)
+    const additionalInfoSection = document.querySelector('.detail-section:has(h3)');
+    if (additionalInfoSection) {
+        // This needs special handling - let's skip it for now or handle it separately
+    }
+}
+
+// Save client details
+async function saveClientDetails() {
+    if (!currentClientCard) return;
+
+    try {
+        const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
+
+        // Collect updated values
+        const updates = {};
+
+        // Get values from input/select elements
+        document.querySelectorAll('.detail-field-input, .detail-field-select, .detail-field-textarea').forEach(el => {
+            const field = el.getAttribute('data-field');
+            if (field) {
+                updates[field] = el.value || null;
+            }
+        });
+
+        // Validation
+        if (Object.keys(updates).length === 0) {
+            showToast('No changes to save', 'error');
+            return;
+        }
+
+        // Send PATCH request
+        const response = await fetch(`/api/clients/${clientData.id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(updates)
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update client');
+        }
+
+        const result = await response.json();
+
+        showToast('Client details updated successfully', 'success');
+
+        // Exit edit mode
+        isEditMode = false;
+        document.getElementById('editButton').style.display = 'block';
+        document.getElementById('editActions').style.display = 'none';
+
+        // Reload client details and all clients
+        await openClientDetail(clientData.id);
+        await loadAllClients();
+
+    } catch (error) {
+        console.error('Error saving client details:', error);
+        showToast('Failed to save changes', 'error');
+    }
+}
+
 // ==================== INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', function() {

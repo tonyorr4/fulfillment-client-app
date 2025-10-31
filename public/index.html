@@ -487,6 +487,36 @@
             color: #172b4d;
         }
 
+        .detail-field-input,
+        .detail-field-select,
+        .detail-field-textarea {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #dfe1e6;
+            border-radius: 3px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #172b4d;
+            background-color: white;
+        }
+
+        .detail-field-input:focus,
+        .detail-field-select:focus,
+        .detail-field-textarea:focus {
+            outline: none;
+            border-color: #0052cc;
+            box-shadow: 0 0 0 1px #0052cc;
+        }
+
+        .detail-field-textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        #editActions {
+            display: flex;
+        }
+
         /* Comments Section */
         .comment-box {
             display: flex;
@@ -1184,6 +1214,21 @@
 
                     <!-- Sidebar -->
                     <div class="detail-sidebar">
+                        <!-- Edit Controls -->
+                        <div class="detail-section" id="editControls">
+                            <button id="editButton" class="btn btn-secondary" onclick="toggleEditMode()" style="width: 100%; margin-bottom: 8px;">
+                                Edit Details
+                            </button>
+                            <div id="editActions" style="display: none; gap: 8px;">
+                                <button class="btn btn-success" onclick="saveClientDetails()" style="flex: 1;">
+                                    Save
+                                </button>
+                                <button class="btn btn-secondary" onclick="cancelEditMode()" style="flex: 1;">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Client Approval -->
                         <div class="detail-section">
                             <h3>Client Approved</h3>

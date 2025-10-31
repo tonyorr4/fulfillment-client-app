@@ -461,6 +461,112 @@ app.patch('/api/clients/:id/approval', ensureAuthenticated, async (req, res) => 
     }
 });
 
+// Update client details
+app.patch('/api/clients/:id', ensureAuthenticated, async (req, res) => {
+    try {
+        const {
+            client_name,
+            client_email,
+            client_type,
+            avg_orders,
+            num_skus,
+            battery,
+            heavy_sku,
+            num_pallets,
+            special_packaging,
+            barcoding,
+            additional_info
+        } = req.body;
+
+        const { pool } = require('./database');
+
+        // Build dynamic update query for provided fields
+        const updates = [];
+        const values = [];
+        let paramCount = 1;
+
+        if (client_name !== undefined) {
+            updates.push(`client_name = $${paramCount++}`);
+            values.push(client_name);
+        }
+        if (client_email !== undefined) {
+            updates.push(`client_email = $${paramCount++}`);
+            values.push(client_email || null);
+        }
+        if (client_type !== undefined) {
+            updates.push(`client_type = $${paramCount++}`);
+            values.push(client_type);
+        }
+        if (avg_orders !== undefined) {
+            updates.push(`avg_orders = $${paramCount++}`);
+            values.push(avg_orders);
+        }
+        if (num_skus !== undefined) {
+            updates.push(`num_skus = $${paramCount++}`);
+            values.push(num_skus);
+        }
+        if (battery !== undefined) {
+            updates.push(`battery = $${paramCount++}`);
+            values.push(battery);
+        }
+        if (heavy_sku !== undefined) {
+            updates.push(`heavy_sku = $${paramCount++}`);
+            values.push(heavy_sku);
+        }
+        if (num_pallets !== undefined) {
+            updates.push(`num_pallets = $${paramCount++}`);
+            values.push(num_pallets);
+        }
+        if (special_packaging !== undefined) {
+            updates.push(`special_packaging = $${paramCount++}`);
+            values.push(special_packaging);
+        }
+        if (barcoding !== undefined) {
+            updates.push(`barcoding = $${paramCount++}`);
+            values.push(barcoding);
+        }
+        if (additional_info !== undefined) {
+            updates.push(`additional_info = $${paramCount++}`);
+            values.push(additional_info);
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({ error: 'No fields to update' });
+        }
+
+        // Add updated_at
+        updates.push(`updated_at = NOW()`);
+
+        // Add client ID as last parameter
+        values.push(req.params.id);
+
+        const query = `
+            UPDATE clients
+            SET ${updates.join(', ')}
+            WHERE id = $${paramCount}
+            RETURNING *
+        `;
+
+        const result = await pool.query(query, values);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Client not found' });
+        }
+
+        const client = result.rows[0];
+
+        // Log activity
+        await logActivity(client.id, req.user.id, 'client_updated', {
+            fields_updated: Object.keys(req.body)
+        });
+
+        res.json({ success: true, client });
+    } catch (error) {
+        console.error('Error updating client:', error);
+        res.status(500).json({ error: 'Failed to update client' });
+    }
+});
+
 // Delete client
 app.delete('/api/clients/:id', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
     try {
