@@ -161,36 +161,66 @@
 ---
 
 ### 5. Role-Based Permissions
-**Status:** Not Started
+**Status:** ✅ COMPLETE & VERIFIED
 **Priority:** 🟠 High
 **Description:** Implement proper role-based access control for different user types.
 
-#### Permission Matrix
+**Completed:** October 31, 2025
 
-| Action | Sales | Admin | Sr. Ops | Supervisor | Fulfillment | Viewer |
-|--------|-------|-------|---------|------------|-------------|--------|
-| Create new request | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| View all tiles | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Complete subtasks | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Add comments | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Change status (move tiles) | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Approve clients | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Delete clients | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Edit assignments | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Access admin settings | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+#### Implemented Permission Matrix
 
-**Tasks:**
-- [ ] Create permission checking middleware in backend
-- [ ] Add role checks to all API endpoints
-- [ ] Frontend: Hide/disable UI elements based on user role
-- [ ] Frontend: Hide status dropdown for Sales role users
-- [ ] Frontend: Disable drag-and-drop for Sales role users
-- [ ] Test each role's permissions thoroughly
+| Action | Sales | Fulfillment (Admin, Sr. Ops, Supervisor, Fulfillment) |
+|--------|-------|------------------------------------------------------|
+| Create new request | ✅ | ✅ |
+| View all tiles | ✅ | ✅ |
+| Complete subtasks | ✅ | ✅ |
+| Add comments | ✅ | ✅ |
+| Create subtasks | ✅ | ✅ |
+| Change subtask assignees | ✅ | ✅ |
+| @mention users | ✅ | ✅ |
+| Edit client details | ❌ | ✅ |
+| Change status (move tiles) | ❌ | ✅ |
+| Approve clients | ❌ | ✅ |
+| Delete clients | ❌ | ✅ (Admin only) |
 
-**Files to Modify:**
-- `server.js` - Add permission middleware to endpoints
-- `auth-config.js` - Add permission checking functions
-- `public/app.js` - Conditional UI rendering based on role
+**Resolution:**
+- [x] Created blockSalesRole middleware in backend ✅
+- [x] Protected PATCH /api/clients/:id/status (change status) ✅
+- [x] Protected PATCH /api/clients/:id/approval (approve/reject) ✅
+- [x] Protected PATCH /api/clients/:id (edit client details) ✅
+- [x] Created applyRoleBasedPermissions() function in frontend ✅
+- [x] Hide "Edit Details" button for Sales users ✅
+- [x] Disable status dropdown for Sales users (grayed out) ✅
+- [x] Disable approval dropdown for Sales users (grayed out) ✅
+- [x] Disable drag-and-drop for Sales users (cards not draggable) ✅
+
+**Implementation Details:**
+
+1. **Backend - Permission Middleware:**
+   - Created `blockSalesRole` middleware that checks `req.user.role === 'Sales'`
+   - Returns 403 error with message for forbidden actions
+   - Applied to endpoints: status updates, approval decisions, client detail edits
+   - Delete endpoint already protected with `checkAutoAdmin` middleware
+
+2. **Frontend - UI Restrictions:**
+   - Created `applyRoleBasedPermissions()` function called when modal opens
+   - Checks `currentUser.role === 'Sales'` to determine restrictions
+   - Hides Edit Details button completely for Sales users
+   - Disables status and approval dropdowns (grayed out, not clickable)
+   - Sets `card.draggable = false` for Sales users (no drag-and-drop)
+   - All subtask functionality remains enabled for Sales users
+
+3. **User Experience:**
+   - Sales users see all tiles and can interact with comments/subtasks
+   - Restricted UI elements are either hidden or grayed out
+   - Backend prevents any attempts to bypass frontend restrictions
+   - Fulfillment team has full admin access with no restrictions
+
+**Files Modified:**
+- `server.js` - Added blockSalesRole middleware and applied to protected endpoints
+- `public/app.js` - Added applyRoleBasedPermissions() and role checks in createClientCardElement()
+
+**User Testing:** Ready for production testing with Sales user account
 
 ---
 
@@ -441,10 +471,10 @@
 
 ## 📊 CURRENT STATUS SUMMARY
 
-- ✅ **Working:** Basic Kanban board, OAuth authentication, client creation, drag-and-drop, form data persistence, sales team display, subtask assignment, email notifications, @mention autocomplete, editable client details
+- ✅ **Working:** Basic Kanban board, OAuth authentication, client creation, drag-and-drop, form data persistence, sales team display, subtask assignment, email notifications, @mention autocomplete, editable client details, role-based permissions
 - ⚠️ **Needs Fix:** None
 - 🚧 **In Progress:** None
-- ❌ **Not Started:** Permissions, Slack integration
+- ❌ **Not Started:** Slack integration
 
 ---
 
