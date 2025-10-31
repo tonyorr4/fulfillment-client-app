@@ -172,10 +172,14 @@ function createClientCardElement(client) {
 
     const card = document.createElement('div');
     card.className = `card ${client.status}`;
-    card.draggable = true;
+    // Disable drag for Sales users
+    const isSalesRole = currentUser && currentUser.role === 'Sales';
+    card.draggable = !isSalesRole;
     card.setAttribute('data-id', client.id);
     card.setAttribute('data-client-data', JSON.stringify(client));
-    card.ondragstart = drag;
+    if (!isSalesRole) {
+        card.ondragstart = drag;
+    }
 
     const formattedDate = new Date(client.est_inbound_date).toLocaleDateString('en-US', {
         month: 'short',
@@ -510,10 +514,53 @@ function populateClientDetailModal(client) {
         // Update sidebar fields
         updateSidebarFields(client);
 
+        // Apply role-based permissions for UI elements
+        applyRoleBasedPermissions();
+
         console.log('Modal populated successfully');
     } catch (error) {
         console.error('Error in populateClientDetailModal:', error);
         throw error;
+    }
+}
+
+// Apply role-based permissions to UI elements
+function applyRoleBasedPermissions() {
+    // Check if current user is Sales
+    const isSalesRole = currentUser && currentUser.role === 'Sales';
+
+    // Hide Edit Details button for Sales users
+    const editButton = document.getElementById('editButton');
+    if (editButton) {
+        editButton.style.display = isSalesRole ? 'none' : 'block';
+    }
+
+    // Hide status dropdown for Sales users
+    const statusSelect = document.getElementById('clientStatusSelect');
+    if (statusSelect) {
+        if (isSalesRole) {
+            statusSelect.disabled = true;
+            statusSelect.style.opacity = '0.5';
+            statusSelect.style.cursor = 'not-allowed';
+        } else {
+            statusSelect.disabled = false;
+            statusSelect.style.opacity = '1';
+            statusSelect.style.cursor = 'pointer';
+        }
+    }
+
+    // Hide approval dropdown for Sales users
+    const approvalSelect = document.getElementById('clientApprovalSelect');
+    if (approvalSelect) {
+        if (isSalesRole) {
+            approvalSelect.disabled = true;
+            approvalSelect.style.opacity = '0.5';
+            approvalSelect.style.cursor = 'not-allowed';
+        } else {
+            approvalSelect.disabled = false;
+            approvalSelect.style.opacity = '1';
+            approvalSelect.style.cursor = 'pointer';
+        }
     }
 }
 

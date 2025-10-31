@@ -82,6 +82,19 @@ app.use(passport.session());
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ==================== PERMISSION MIDDLEWARE ====================
+
+// Middleware to block Sales users from admin-only actions
+const blockSalesRole = (req, res, next) => {
+    if (req.user && req.user.role === 'Sales') {
+        return res.status(403).json({
+            error: 'Access denied',
+            message: 'Sales users do not have permission to perform this action'
+        });
+    }
+    next();
+};
+
 // ==================== AUTHENTICATION ROUTES ====================
 
 // Google OAuth login
@@ -370,7 +383,7 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
 });
 
 // Update client status
-app.patch('/api/clients/:id/status', ensureAuthenticated, async (req, res) => {
+app.patch('/api/clients/:id/status', ensureAuthenticated, blockSalesRole, async (req, res) => {
     try {
         const { status, clientApproved } = req.body;
 
@@ -426,7 +439,7 @@ app.patch('/api/clients/:id/status', ensureAuthenticated, async (req, res) => {
 });
 
 // Update client approval
-app.patch('/api/clients/:id/approval', ensureAuthenticated, async (req, res) => {
+app.patch('/api/clients/:id/approval', ensureAuthenticated, blockSalesRole, async (req, res) => {
     try {
         const { approval } = req.body; // 'yes', 'no', or 'auto-approve'
 
@@ -462,7 +475,7 @@ app.patch('/api/clients/:id/approval', ensureAuthenticated, async (req, res) => 
 });
 
 // Update client details
-app.patch('/api/clients/:id', ensureAuthenticated, async (req, res) => {
+app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, res) => {
     try {
         const {
             client_name,
