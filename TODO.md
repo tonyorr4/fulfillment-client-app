@@ -101,67 +101,62 @@
 ---
 
 ### 4. Email Notifications System
-**Status:** Not Started
+**Status:** ✅ COMPLETE & VERIFIED
 **Priority:** 🟠 High
 **Description:** Implement email notifications using Brevo for various client tile events.
 
-#### 4.1 Request Submission Notification
-**Recipient:** Sales team member who submitted the request
-**Trigger:** When client request is submitted
-**Content:**
-- Subject: "Fulfillment Request [Auto-Approved/Pending Review] - [Client Name]"
-- Summary of request details
-- Outcome: Auto-approved → moved to Signing OR Pending → awaiting manual review
-- Link to client tile
+**Resolution:**
+- [x] Created notifyTony() helper function for all client events ✅
+- [x] Updated sendNewRequestNotification() to send to sales team member + Tony ✅
+- [x] Added sendStatusChangeNotification() for status changes ✅
+- [x] Added sendSubtaskCompletionNotification() for completed subtasks ✅
+- [x] Added sendApprovalDecisionNotification() for approval decisions ✅
+- [x] Integrated notifications into 7 endpoints (clients, status, approval, subtasks, comments) ✅
+- [x] Configured Brevo environment variables in Railway ✅
+- [x] Tested email delivery - confirmed working ✅
 
-**Tasks:**
-- [ ] Create email template for request submission
-- [ ] Send email after client creation in POST /api/clients
-- [ ] Include all relevant client details
-- [ ] Different message for auto-approved vs. manual review
+**Completed:** October 31, 2025
 
-#### 4.2 Comment/Mention Notification
-**Recipient:** All users assigned to the client tile (sales_team, fulfillment_ops)
-**Trigger:** When someone adds a comment or mentions someone on a client tile
-**Content:**
-- Subject: "New Comment on [Client Name]"
-- Comment text
-- Who posted it
-- Link to client tile
+**Email Events Implemented:**
+1. **New Request Created** → Sends to sales team member + Tony
+   - Subject: `Fulfillment Request [Auto-Approved/Pending Review] - [Client Name]`
+   - Includes all client details, auto-approval status, link to app
 
-**Tasks:**
-- [ ] Parse mentions from comment text (e.g., @Tony Orr)
-- [ ] Get list of assigned users from client record
-- [ ] Send email to all assigned users + mentioned users
-- [ ] Create comment notification email template
+2. **Status Changed** → Sends to Tony
+   - Subject: `[Fulfillment] Status Changed to [Status] - [Client Name]`
+   - Shows old status → new status
 
-#### 4.3 Tony's Always-Notify Rule
-**Recipient:** tony.orr@easyship.com
-**Trigger:** ANY update to ANY client tile
-**Events to notify:**
-- New request created
-- Status changed
-- Approval decision made
-- Comment added
-- Subtask completed
-- Assignment changed
+3. **Approval Decision** → Sends to Tony
+   - Subject: `[Fulfillment] Approval Decision: [Approved/Rejected] - [Client Name]`
+   - Shows who made the decision
 
-**Tasks:**
-- [ ] Create a notifyTony() helper function
-- [ ] Call notifyTony() on all client update operations
-- [ ] Create digest email template for Tony with all changes
-- [ ] Optional: Daily summary email instead of individual notifications
+4. **Subtask Completed** → Sends to Tony
+   - Subject: `[Fulfillment] Subtask Completed - [Client Name]`
+   - Shows subtask text and who completed it
 
-**Email Implementation:**
-- [ ] Verify Brevo API key is set in environment variables
-- [ ] Verify sender email is configured
-- [ ] Create email template helper functions
-- [ ] Test email delivery
+5. **Subtask Created** → Sends to Tony
+   - Subject: `[Fulfillment] New Subtask Created - [Client Name]`
+   - Shows subtask text and assignee
 
-**Files to Modify:**
-- `server.js` - Add email notification calls to all relevant endpoints
-- Create new file: `email-service.js` - Email helper functions
-- Environment: Verify BREVO_API_KEY, BREVO_SENDER_EMAIL
+6. **Assignee Changed** → Sends to Tony
+   - Subject: `[Fulfillment] Assignment Changed - [Client Name]`
+   - Shows subtask and new assignee
+
+7. **Comment Added** → Sends to Tony + mentioned users
+   - Subject: `[Fulfillment] Comment Added - [Client Name]` (Tony)
+   - Subject: `You were mentioned in [Client Name]` (mentioned users)
+   - Shows commenter, comment text, link to app
+
+**Environment Variables Configured:**
+- `BREVO_API_KEY` = Brevo API key
+- `BREVO_SENDER_EMAIL` = tony.orr@easyship.com
+- `APP_URL` = Production app URL
+
+**Files Modified:**
+- `email-service.js` - Added all notification functions with HTML/text templates
+- `server.js` - Integrated email calls into all relevant endpoints
+
+**User Testing:** ✅ Verified in production - both sales team and Tony notifications working
 
 ---
 
@@ -367,10 +362,10 @@
 
 ## 📊 CURRENT STATUS SUMMARY
 
-- ✅ **Working:** Basic Kanban board, OAuth authentication, client creation, drag-and-drop, form data persistence, sales team display, subtask assignment
+- ✅ **Working:** Basic Kanban board, OAuth authentication, client creation, drag-and-drop, form data persistence, sales team display, subtask assignment, email notifications
 - ⚠️ **Needs Fix:** None
 - 🚧 **In Progress:** None
-- ❌ **Not Started:** Email notifications, permissions, Slack integration
+- ❌ **Not Started:** Permissions, Slack integration
 
 ---
 
@@ -384,11 +379,9 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 SESSION_SECRET=...
 AUTO_ADMIN_EMAIL=tony.orr@easyship.com
-
-# Need to verify/add:
-BREVO_API_KEY=xkeysib-...
-BREVO_SENDER_EMAIL=notifications@easyship.com
-ADMIN_NOTIFICATION_EMAIL=tony.orr@easyship.com
+BREVO_API_KEY=xkeysib-... ✅
+BREVO_SENDER_EMAIL=tony.orr@easyship.com ✅
+APP_URL=[Railway production URL] ✅
 
 # Need to add for Slack:
 SLACK_WEBHOOK_URL=https://hooks.slack.com/... (or)
@@ -399,8 +392,10 @@ SLACK_CHANNEL_ID=#fulfillment-updates
 ### Database Schema Changes Needed:
 - None currently - existing schema supports all features
 
+### Files Created:
+- ✅ `email-service.js` - Email notification helper functions
+
 ### New Files to Create:
-- `email-service.js` - Email notification helper functions
 - `slack-service.js` - Slack integration helper functions
 - `permissions.js` - Permission checking middleware
 
