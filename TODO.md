@@ -70,26 +70,33 @@
 ### 3. Subtask Assignment to Specific People
 **Status:** ✅ COMPLETE & VERIFIED
 **Priority:** 🟠 High
-**Description:** Subtasks can now be assigned to specific people when creating or editing them.
+**Description:** Subtasks can now be assigned to specific people when creating or editing them. Users are filtered by app-specific access control.
 
 **Resolution:**
 - [x] Add assignee dropdown when creating new subtask ✅
-- [x] Dropdown shows all approved Fulfillment app users (Admin, Sr. Ops, Supervisor, Sales, Fulfillment, Viewer roles) ✅
+- [x] Dropdown shows full user names (not initials) ✅
+- [x] Filters users by active access to Fulfillment app via user_app_access table ✅
 - [x] Defaults to current user ✅
 - [x] Allow changing assignee on existing subtasks via dropdown ✅
 - [x] Store assignee name in subtasks table ✅
 
 **API Changes Implemented:**
-- [x] GET /api/users/all - fetches all approved users for assignee dropdown (filtered by Fulfillment roles) ✅
+- [x] GET /api/users/all - fetches users with active access to Fulfillment app (app_id = 5) via user_app_access join ✅
 - [x] POST /api/clients/:id/subtasks already accepted assignee parameter ✅
 - [x] PATCH /api/subtasks/:id/assignee - changes assignee on existing subtasks ✅
 
 **Files Modified:**
-- `server.js` - Added GET /api/users/all and PATCH /api/subtasks/:id/assignee endpoints
+- `server.js` - Added GET /api/users/all and PATCH /api/subtasks/:id/assignee endpoints with app-specific filtering
 - `public/index.html` - Added assignee dropdown to subtask creation with CSS styling
 - `public/app.js` - Updated addSubtask function and loadSubtasksIntoModal to handle assignee selection
 
+**Database Architecture:**
+- Uses shared Sincro database with user_app_access table for cross-app access control
+- Fulfillment app (app_id = 5) only shows users with active=TRUE for that app
+- Prevents showing users from other Sincro apps (Maintenance, Access, etc.)
+
 **Completed:** October 31, 2025
+**User Testing:** ✅ Verified in production
 
 ---
 
