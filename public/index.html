@@ -613,6 +613,34 @@
             font-weight: 600;
         }
 
+        .subtask-assignee-change {
+            margin-left: auto;
+            background-color: #deebff;
+            color: #0052cc;
+            border: none;
+            border-radius: 12px;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .subtask-assignee-change:hover {
+            background-color: #b3d4ff;
+        }
+
+        .subtask-assignee-change:focus {
+            outline: 2px solid #0052cc;
+            outline-offset: 2px;
+        }
+
+        .subtask-assignee-change option {
+            background-color: white;
+            color: #172b4d;
+        }
+
         .add-subtask {
             display: flex;
             gap: 8px;
@@ -625,6 +653,21 @@
             border: 1px solid #dfe1e6;
             border-radius: 3px;
             font-size: 14px;
+        }
+
+        .subtask-assignee-select {
+            padding: 6px 10px;
+            border: 1px solid #dfe1e6;
+            border-radius: 3px;
+            font-size: 14px;
+            background-color: white;
+            cursor: pointer;
+            min-width: 150px;
+        }
+
+        .subtask-assignee-select:focus {
+            border-color: #0052cc;
+            outline: none;
         }
 
         /* Status Badge */
@@ -1033,7 +1076,11 @@
                                 <!-- Subtasks loaded dynamically -->
                             </ul>
                             <div class="add-subtask">
-                                <input type="text" placeholder="Add a subtask...">
+                                <input type="text" id="subtaskInput" placeholder="Add a subtask...">
+                                <select id="subtaskAssigneeSelect" class="subtask-assignee-select">
+                                    <option value="">Assign to...</option>
+                                    <!-- Options loaded dynamically -->
+                                </select>
                                 <button class="btn btn-primary" onclick="addSubtask()">Add</button>
                             </div>
                         </div>

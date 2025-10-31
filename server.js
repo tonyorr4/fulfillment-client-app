@@ -197,6 +197,29 @@ app.get('/api/users/by-role', ensureAuthenticated, async (req, res) => {
     }
 });
 
+// Get all approved users (for assignee dropdown)
+app.get('/api/users/all', ensureAuthenticated, async (req, res) => {
+    try {
+        const { pool } = require('./database');
+
+        // Get all approved users, ordered by name
+        const result = await pool.query(
+            `SELECT id, name, email, role, picture
+             FROM users
+             WHERE approved = TRUE
+             ORDER BY name ASC`
+        );
+
+        res.json({
+            success: true,
+            users: result.rows
+        });
+    } catch (error) {
+        console.error('Error fetching all users:', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
 // ==================== CLIENT ROUTES ====================
 
 // Get all clients
@@ -476,6 +499,43 @@ app.patch('/api/subtasks/:id/toggle', ensureAuthenticated, async (req, res) => {
     } catch (error) {
         console.error('Error toggling subtask:', error);
         res.status(500).json({ error: 'Failed to toggle subtask' });
+    }
+});
+
+// Update subtask assignee
+app.patch('/api/subtasks/:id/assignee', ensureAuthenticated, async (req, res) => {
+    try {
+        const { assignee } = req.body;
+        const { pool } = require('./database');
+
+        if (!assignee) {
+            return res.status(400).json({ error: 'Assignee parameter required' });
+        }
+
+        const result = await pool.query(
+            `UPDATE subtasks
+             SET assignee = $1
+             WHERE id = $2
+             RETURNING *`,
+            [assignee, req.params.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Subtask not found' });
+        }
+
+        const subtask = result.rows[0];
+
+        // Log activity
+        await logActivity(subtask.client_id, req.user.id, 'subtask_assignee_changed', {
+            subtask_id: subtask.id,
+            new_assignee: assignee
+        });
+
+        res.json({ success: true, subtask });
+    } catch (error) {
+        console.error('Error updating subtask assignee:', error);
+        res.status(500).json({ error: 'Failed to update subtask assignee' });
     }
 });
 

@@ -4,6 +4,7 @@
 // ==================== GLOBAL STATE ====================
 let currentUser = null;
 let allClients = [];
+let allUsers = []; // All approved users for assignee dropdown
 let currentClientCard = null;
 let draggedCard = null;
 let isDragging = false;
@@ -22,6 +23,7 @@ async function checkAuth() {
         if (data.authenticated) {
             currentUser = data.user;
             displayUser(currentUser);
+            await loadAllUsers(); // Load users for assignee dropdown
             await loadAllClients();
         } else {
             // Redirect to Google OAuth login
@@ -52,6 +54,54 @@ function displayUser(user) {
 // Logout
 function logout() {
     window.location.href = '/auth/logout';
+}
+
+// Load all approved users for assignee dropdown
+async function loadAllUsers() {
+    try {
+        const response = await fetch('/api/users/all', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch users');
+        }
+
+        const data = await response.json();
+        allUsers = data.users || [];
+        console.log(`📥 Loaded ${allUsers.length} users for assignee dropdown`);
+    } catch (error) {
+        console.error('Error loading users:', error);
+        showToast('Failed to load users', 'error');
+    }
+}
+
+// Populate assignee dropdown
+function populateAssigneeDropdown() {
+    const assigneeSelect = document.getElementById('subtaskAssigneeSelect');
+    if (!assigneeSelect) return;
+
+    // Clear existing options except the first one
+    assigneeSelect.innerHTML = '<option value="">Assign to...</option>';
+
+    // Add current user as first option (default)
+    if (currentUser) {
+        const currentUserOption = document.createElement('option');
+        currentUserOption.value = currentUser.name;
+        currentUserOption.textContent = `${currentUser.name} (me)`;
+        currentUserOption.selected = true;
+        assigneeSelect.appendChild(currentUserOption);
+    }
+
+    // Add all other users
+    allUsers.forEach(user => {
+        if (user.name !== currentUser?.name) {
+            const option = document.createElement('option');
+            option.value = user.name;
+            option.textContent = user.name;
+            assigneeSelect.appendChild(option);
+        }
+    });
 }
 
 // ==================== CLIENT OPERATIONS ====================
@@ -448,6 +498,9 @@ function populateClientDetailModal(client) {
         // Load subtasks
         loadSubtasksIntoModal(client.subtasks || []);
 
+        // Populate assignee dropdown for new subtasks
+        populateAssigneeDropdown();
+
         // Load comments
         loadCommentsIntoModal(client.comments || []);
 
@@ -480,11 +533,39 @@ function loadSubtasksIntoModal(subtasks) {
         subtasks.forEach(subtask => {
             const li = document.createElement('li');
             li.className = 'subtask-item';
-            li.innerHTML = `
-                <input type="checkbox" class="subtask-checkbox" ${subtask.completed ? 'checked' : ''} onchange="toggleSubtask(${subtask.id})">
-                <span class="subtask-text ${subtask.completed ? 'completed' : ''}">${subtask.subtask_text}</span>
-                <div class="subtask-assignee" title="${subtask.assignee}">${getInitials(subtask.assignee)}</div>
-            `;
+
+            // Create checkbox
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'subtask-checkbox';
+            checkbox.checked = subtask.completed;
+            checkbox.onchange = () => toggleSubtask(subtask.id);
+
+            // Create text span
+            const textSpan = document.createElement('span');
+            textSpan.className = `subtask-text ${subtask.completed ? 'completed' : ''}`;
+            textSpan.textContent = subtask.subtask_text;
+
+            // Create assignee dropdown
+            const assigneeSelect = document.createElement('select');
+            assigneeSelect.className = 'subtask-assignee-change';
+            assigneeSelect.title = `Assigned to: ${subtask.assignee}`;
+            assigneeSelect.onchange = () => changeSubtaskAssignee(subtask.id, assigneeSelect.value);
+
+            // Add options to assignee dropdown
+            allUsers.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.name;
+                option.textContent = getInitials(user.name);
+                if (user.name === subtask.assignee) {
+                    option.selected = true;
+                }
+                assigneeSelect.appendChild(option);
+            });
+
+            li.appendChild(checkbox);
+            li.appendChild(textSpan);
+            li.appendChild(assigneeSelect);
             subtaskList.appendChild(li);
         });
     } catch (error) {
@@ -519,13 +600,48 @@ async function toggleSubtask(subtaskId) {
     }
 }
 
+// Change subtask assignee
+async function changeSubtaskAssignee(subtaskId, newAssignee) {
+    try {
+        const response = await fetch(`/api/subtasks/${subtaskId}/assignee`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ assignee: newAssignee })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to change subtask assignee');
+        }
+
+        showToast(`Assignee changed to ${newAssignee}`, 'success');
+
+        // Reload current client details
+        if (currentClientCard) {
+            const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
+            await openClientDetail(clientData.id);
+        }
+
+        // Reload all clients
+        await loadAllClients();
+
+    } catch (error) {
+        console.error('Error changing subtask assignee:', error);
+        showToast('Failed to change assignee', 'error');
+    }
+}
+
 // Add new subtask
 async function addSubtask() {
     if (!currentClientCard) return;
 
     const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
-    const input = document.querySelector('.add-subtask input');
+    const input = document.getElementById('subtaskInput');
+    const assigneeSelect = document.getElementById('subtaskAssigneeSelect');
     const subtaskText = input.value.trim();
+    const assignee = assigneeSelect.value || currentUser.name;
 
     if (!subtaskText) {
         showToast('Please enter a subtask description', 'error');
@@ -541,7 +657,7 @@ async function addSubtask() {
             credentials: 'include',
             body: JSON.stringify({
                 subtaskText,
-                assignee: currentUser.name
+                assignee
             })
         });
 
@@ -550,6 +666,10 @@ async function addSubtask() {
         }
 
         input.value = '';
+        // Reset assignee dropdown to current user
+        if (currentUser) {
+            assigneeSelect.value = currentUser.name;
+        }
         showToast('Subtask added', 'success');
 
         // Reload client details
