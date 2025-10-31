@@ -202,16 +202,15 @@ app.get('/api/users/all', ensureAuthenticated, async (req, res) => {
     try {
         const { pool } = require('./database');
 
-        // Get only approved users with Fulfillment app roles, ordered by name
-        // Roles: Admin, Sr. Ops, Supervisor, Sales, Fulfillment, Viewer
-        const fulfillmentRoles = ['Admin', 'Sr. Ops', 'Supervisor', 'Sales', 'Fulfillment', 'Viewer'];
-
+        // Get only users who have active access to the Fulfillment app (app_id = 5)
+        // Join with user_app_access to filter by app-specific access
         const result = await pool.query(
-            `SELECT id, name, email, role, picture
-             FROM users
-             WHERE approved = TRUE AND role = ANY($1)
-             ORDER BY name ASC`,
-            [fulfillmentRoles]
+            `SELECT DISTINCT u.id, u.name, u.email, uaa.role, u.picture
+             FROM users u
+             JOIN user_app_access uaa ON u.id = uaa.user_id
+             WHERE uaa.app_id = 5
+               AND uaa.active = TRUE
+             ORDER BY u.name ASC`
         );
 
         res.json({
