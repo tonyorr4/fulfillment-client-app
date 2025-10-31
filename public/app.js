@@ -556,7 +556,7 @@ function loadSubtasksIntoModal(subtasks) {
             allUsers.forEach(user => {
                 const option = document.createElement('option');
                 option.value = user.name;
-                option.textContent = getInitials(user.name);
+                option.textContent = user.name;
                 if (user.name === subtask.assignee) {
                     option.selected = true;
                 }
