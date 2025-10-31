@@ -15,16 +15,17 @@
   "author": "Tony Orr",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "@getbrevo/brevo": "^2.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
     "express-session": "^1.17.3",
-    "pg": "^8.11.3",
+    "helmet": "^7.1.0",
     "passport": "^0.6.0",
     "passport-google-oauth20": "^2.0.0",
-    "dotenv": "^16.3.1",
-    "helmet": "^7.1.0",
-    "express-rate-limit": "^7.1.5",
-    "cors": "^2.8.5",
-    "@getbrevo/brevo": "^2.0.0"
+    "pg": "^8.11.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

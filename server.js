@@ -29,6 +29,15 @@ const {
     sendSubtaskCompletionNotification,
     sendApprovalDecisionNotification
 } = require('./email-service');
+const {
+    autoMatchChannel,
+    fetchChannelMessages,
+    formatMessagesForSummary
+} = require('./slack-service');
+const {
+    generateSlackSummary,
+    updateIncrementalSummary
+} = require('./claude-service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -847,6 +856,208 @@ app.get('/api/export', ensureAuthenticated, checkAutoAdmin, async (req, res) => 
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ==================== SLACK INTEGRATION ROUTES ====================
+
+// Get Slack summary for a client
+app.get('/api/clients/:id/slack-summary', ensureAuthenticated, async (req, res) => {
+    try {
+        const { pool } = require('./database');
+
+        // Get summary from database
+        const result = await pool.query(
+            'SELECT * FROM slack_summaries WHERE client_id = $1 ORDER BY updated_at DESC LIMIT 1',
+            [req.params.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({
+                success: true,
+                summary: null,
+                message: 'No summary available yet. Click "Generate Summary" to create one.'
+            });
+        }
+
+        res.json({
+            success: true,
+            summary: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error fetching Slack summary:', error);
+        res.status(500).json({ error: 'Failed to fetch summary' });
+    }
+});
+
+// Generate or refresh Slack summary for a client
+app.post('/api/clients/:id/slack-summary/refresh', ensureAuthenticated, async (req, res) => {
+    try {
+        const { pool } = require('./database');
+        const clientId = req.params.id;
+
+        // Get client details
+        const clientResult = await pool.query(
+            'SELECT id, client_name, slack_channel_id FROM clients WHERE id = $1',
+            [clientId]
+        );
+
+        if (clientResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Client not found' });
+        }
+
+        const client = clientResult.rows[0];
+
+        // Check if slack_channel_id is set
+        if (!client.slack_channel_id) {
+            return res.status(400).json({
+                error: 'No Slack channel configured',
+                message: 'Please set the Slack channel ID in client details first.'
+            });
+        }
+
+        console.log(`🔄 Refreshing Slack summary for client: ${client.client_name}`);
+
+        // Get existing summary to check for incremental update
+        const existingSummaryResult = await pool.query(
+            'SELECT * FROM slack_summaries WHERE client_id = $1 ORDER BY updated_at DESC LIMIT 1',
+            [clientId]
+        );
+
+        const existingSummary = existingSummaryResult.rows.length > 0 ? existingSummaryResult.rows[0] : null;
+        const lastTimestamp = existingSummary ? existingSummary.last_message_timestamp : null;
+
+        // Fetch messages from Slack
+        console.log('📥 Fetching messages from Slack...');
+        const messages = await fetchChannelMessages(client.slack_channel_id, lastTimestamp);
+
+        if (messages.length === 0 && existingSummary) {
+            return res.json({
+                success: true,
+                message: 'No new messages since last summary.',
+                summary: existingSummary
+            });
+        }
+
+        if (messages.length === 0 && !existingSummary) {
+            return res.status(400).json({
+                error: 'No messages found',
+                message: 'The Slack channel appears to be empty or inaccessible.'
+            });
+        }
+
+        // Format messages for Claude
+        const formattedMessages = formatMessagesForSummary(messages);
+
+        // Generate or update summary
+        let summaryText;
+        const isInitial = !existingSummary;
+
+        if (isInitial) {
+            console.log('🤖 Generating initial summary...');
+            summaryText = await generateSlackSummary(formattedMessages, client.client_name, true);
+        } else {
+            console.log('🤖 Updating incremental summary...');
+            summaryText = await updateIncrementalSummary(
+                existingSummary.summary_text,
+                formattedMessages,
+                client.client_name
+            );
+        }
+
+        // Get the most recent message timestamp
+        const mostRecentTimestamp = messages.reduce((latest, msg) => {
+            return parseFloat(msg.ts) > parseFloat(latest) ? msg.ts : latest;
+        }, messages[0].ts);
+
+        // Save summary to database
+        if (isInitial) {
+            await pool.query(
+                `INSERT INTO slack_summaries (client_id, summary_text, last_message_timestamp, message_count, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+                [clientId, summaryText, mostRecentTimestamp, messages.length]
+            );
+        } else {
+            await pool.query(
+                `UPDATE slack_summaries
+                 SET summary_text = $1, last_message_timestamp = $2, message_count = message_count + $3, updated_at = NOW()
+                 WHERE client_id = $4`,
+                [summaryText, mostRecentTimestamp, messages.length, clientId]
+            );
+        }
+
+        // Fetch updated summary
+        const updatedResult = await pool.query(
+            'SELECT * FROM slack_summaries WHERE client_id = $1 ORDER BY updated_at DESC LIMIT 1',
+            [clientId]
+        );
+
+        console.log('✅ Summary generated successfully');
+
+        res.json({
+            success: true,
+            message: isInitial ? 'Initial summary generated' : `Updated with ${messages.length} new messages`,
+            summary: updatedResult.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error generating Slack summary:', error);
+        res.status(500).json({
+            error: 'Failed to generate summary',
+            message: error.message
+        });
+    }
+});
+
+// Auto-match Slack channel for a client
+app.post('/api/clients/:id/slack-auto-match', ensureAuthenticated, async (req, res) => {
+    try {
+        const { pool } = require('./database');
+        const clientId = req.params.id;
+
+        // Get client details
+        const clientResult = await pool.query(
+            'SELECT id, client_name FROM clients WHERE id = $1',
+            [clientId]
+        );
+
+        if (clientResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Client not found' });
+        }
+
+        const client = clientResult.rows[0];
+
+        console.log(`🔍 Auto-matching Slack channel for: ${client.client_name}`);
+
+        // Try to auto-match channel
+        const channelId = await autoMatchChannel(client.client_name);
+
+        if (!channelId) {
+            return res.status(404).json({
+                error: 'Channel not found',
+                message: `Could not find a Slack channel matching pattern: #client-${client.client_name.toLowerCase().replace(/\s+/g, '-')}`
+            });
+        }
+
+        // Update client with found channel ID
+        await pool.query(
+            'UPDATE clients SET slack_channel_id = $1 WHERE id = $2',
+            [channelId, clientId]
+        );
+
+        res.json({
+            success: true,
+            channel_id: channelId,
+            message: 'Slack channel auto-matched successfully'
+        });
+
+    } catch (error) {
+        console.error('Error auto-matching Slack channel:', error);
+        res.status(500).json({
+            error: 'Failed to auto-match channel',
+            message: error.message
+        });
+    }
 });
 
 // ==================== CATCH-ALL ROUTE ====================
