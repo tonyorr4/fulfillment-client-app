@@ -447,6 +447,9 @@ async function openClientDetail(clientId) {
             console.error('Error populating modal (modal still shown):', populateError);
         }
 
+        // Initialize mention autocomplete
+        initializeMentionAutocomplete();
+
     } catch (error) {
         console.error('Error opening client detail:', error);
         showToast('Failed to load client details', 'error');
@@ -728,6 +731,237 @@ function loadCommentsIntoModal(comments) {
     }
 }
 
+// ==================== MENTION AUTOCOMPLETE ====================
+
+let mentionState = {
+    isActive: false,
+    startPos: -1,
+    searchText: '',
+    selectedIndex: 0,
+    filteredUsers: []
+};
+
+// Initialize mention autocomplete when modal opens
+function initializeMentionAutocomplete() {
+    const textarea = document.getElementById('commentTextarea');
+    const dropdown = document.getElementById('mentionDropdown');
+
+    if (!textarea || !dropdown) return;
+
+    // Handle input changes
+    textarea.addEventListener('input', handleMentionInput);
+
+    // Handle keyboard navigation
+    textarea.addEventListener('keydown', handleMentionKeydown);
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!textarea.contains(e.target) && !dropdown.contains(e.target)) {
+            hideMentionDropdown();
+        }
+    });
+}
+
+// Handle input in textarea
+function handleMentionInput(e) {
+    const textarea = e.target;
+    const text = textarea.value;
+    const cursorPos = textarea.selectionStart;
+
+    // Find @ symbol before cursor
+    let atPos = -1;
+    for (let i = cursorPos - 1; i >= 0; i--) {
+        if (text[i] === '@') {
+            // Check if @ is at start or preceded by whitespace
+            if (i === 0 || /\s/.test(text[i - 1])) {
+                atPos = i;
+                break;
+            }
+        } else if (/\s/.test(text[i])) {
+            // Stop if we hit whitespace before finding @
+            break;
+        }
+    }
+
+    if (atPos !== -1) {
+        // Extract search text after @
+        const searchText = text.substring(atPos + 1, cursorPos);
+
+        // Only show dropdown if search text doesn't contain spaces
+        if (!/\s/.test(searchText)) {
+            mentionState.isActive = true;
+            mentionState.startPos = atPos;
+            mentionState.searchText = searchText;
+            mentionState.selectedIndex = 0;
+
+            // Filter users based on search text
+            filterAndShowMentions(searchText);
+            return;
+        }
+    }
+
+    // Hide dropdown if conditions not met
+    hideMentionDropdown();
+}
+
+// Filter users and show dropdown
+function filterAndShowMentions(searchText) {
+    const search = searchText.toLowerCase();
+
+    // Filter users by name
+    mentionState.filteredUsers = allUsers.filter(user =>
+        user.name.toLowerCase().includes(search)
+    );
+
+    if (mentionState.filteredUsers.length === 0) {
+        hideMentionDropdown();
+        return;
+    }
+
+    // Render dropdown
+    renderMentionDropdown();
+    positionMentionDropdown();
+}
+
+// Render mention dropdown
+function renderMentionDropdown() {
+    const dropdown = document.getElementById('mentionDropdown');
+    if (!dropdown) return;
+
+    dropdown.innerHTML = '';
+
+    mentionState.filteredUsers.forEach((user, index) => {
+        const item = document.createElement('div');
+        item.className = 'mention-item';
+        if (index === mentionState.selectedIndex) {
+            item.classList.add('selected');
+        }
+
+        item.innerHTML = `
+            <span class="mention-item-name">${user.name}</span>
+            <span class="mention-item-email">${user.email || ''}</span>
+        `;
+
+        item.addEventListener('click', () => selectMentionUser(user));
+
+        dropdown.appendChild(item);
+    });
+
+    dropdown.classList.add('active');
+}
+
+// Position dropdown below cursor
+function positionMentionDropdown() {
+    const textarea = document.getElementById('commentTextarea');
+    const dropdown = document.getElementById('mentionDropdown');
+
+    if (!textarea || !dropdown) return;
+
+    // Simple positioning below textarea
+    dropdown.style.top = (textarea.offsetHeight + 5) + 'px';
+    dropdown.style.left = '0px';
+}
+
+// Handle keyboard navigation
+function handleMentionKeydown(e) {
+    if (!mentionState.isActive) return;
+
+    switch (e.key) {
+        case 'ArrowDown':
+            e.preventDefault();
+            mentionState.selectedIndex = Math.min(
+                mentionState.selectedIndex + 1,
+                mentionState.filteredUsers.length - 1
+            );
+            renderMentionDropdown();
+            break;
+
+        case 'ArrowUp':
+            e.preventDefault();
+            mentionState.selectedIndex = Math.max(
+                mentionState.selectedIndex - 1,
+                0
+            );
+            renderMentionDropdown();
+            break;
+
+        case 'Enter':
+        case 'Tab':
+            if (mentionState.filteredUsers.length > 0) {
+                e.preventDefault();
+                const selectedUser = mentionState.filteredUsers[mentionState.selectedIndex];
+                selectMentionUser(selectedUser);
+            }
+            break;
+
+        case 'Escape':
+            e.preventDefault();
+            hideMentionDropdown();
+            break;
+    }
+}
+
+// Select a user from dropdown
+function selectMentionUser(user) {
+    const textarea = document.getElementById('commentTextarea');
+    if (!textarea) return;
+
+    const text = textarea.value;
+    const beforeMention = text.substring(0, mentionState.startPos);
+    const afterCursor = text.substring(textarea.selectionStart);
+
+    // Insert mention with @ symbol and add space after
+    const newText = beforeMention + '@' + user.name + ' ' + afterCursor;
+    textarea.value = newText;
+
+    // Set cursor position after the mention
+    const newCursorPos = beforeMention.length + user.name.length + 2; // +2 for @ and space
+    textarea.selectionStart = newCursorPos;
+    textarea.selectionEnd = newCursorPos;
+
+    // Focus textarea
+    textarea.focus();
+
+    // Hide dropdown
+    hideMentionDropdown();
+}
+
+// Hide mention dropdown
+function hideMentionDropdown() {
+    const dropdown = document.getElementById('mentionDropdown');
+    if (dropdown) {
+        dropdown.classList.remove('active');
+        dropdown.innerHTML = '';
+    }
+
+    mentionState.isActive = false;
+    mentionState.startPos = -1;
+    mentionState.searchText = '';
+    mentionState.selectedIndex = 0;
+    mentionState.filteredUsers = [];
+}
+
+// Parse mentions from comment text
+function parseMentions(text) {
+    const mentionedUserIds = [];
+
+    // Regex to match @Username patterns
+    const mentionRegex = /@([A-Za-z\s]+)(?=\s|$|[^\w])/g;
+    let match;
+
+    while ((match = mentionRegex.exec(text)) !== null) {
+        const mentionedName = match[1].trim();
+
+        // Find user by name
+        const user = allUsers.find(u => u.name === mentionedName);
+        if (user && !mentionedUserIds.includes(user.id)) {
+            mentionedUserIds.push(user.id);
+        }
+    }
+
+    return mentionedUserIds;
+}
+
 // Add new comment
 async function addComment() {
     if (!currentClientCard) return;
@@ -741,6 +975,9 @@ async function addComment() {
         return;
     }
 
+    // Parse mentions from comment text
+    const mentionedUsers = parseMentions(commentText);
+
     try {
         const response = await fetch(`/api/clients/${clientData.id}/comments`, {
             method: 'POST',
@@ -750,7 +987,7 @@ async function addComment() {
             credentials: 'include',
             body: JSON.stringify({
                 commentText,
-                mentionedUsers: [] // TODO: Parse @ mentions if needed
+                mentionedUsers
             })
         });
 
