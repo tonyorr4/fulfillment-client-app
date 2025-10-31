@@ -488,7 +488,9 @@ app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, r
             num_pallets,
             special_packaging,
             barcoding,
-            additional_info
+            additional_info,
+            sales_team,
+            fulfillment_ops
         } = req.body;
 
         const { pool } = require('./database');
@@ -541,6 +543,14 @@ app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, r
         if (additional_info !== undefined) {
             updates.push(`additional_info = $${paramCount++}`);
             values.push(additional_info);
+        }
+        if (sales_team !== undefined) {
+            updates.push(`sales_team = $${paramCount++}`);
+            values.push(sales_team);
+        }
+        if (fulfillment_ops !== undefined) {
+            updates.push(`fulfillment_ops = $${paramCount++}`);
+            values.push(fulfillment_ops);
         }
 
         if (updates.length === 0) {

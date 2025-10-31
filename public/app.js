@@ -1418,6 +1418,26 @@ function makeFieldsEditable() {
         }
     });
 
+    // Make Sales Team editable (dynamic user dropdown)
+    const salesTeamEl = document.getElementById('detailSalesTeam');
+    if (salesTeamEl && allUsers.length > 0) {
+        const currentValue = salesTeamEl.textContent;
+        let options = allUsers.map(user =>
+            `<option value="${user.name}" ${user.name === currentValue ? 'selected' : ''}>${user.name}</option>`
+        ).join('');
+        salesTeamEl.innerHTML = `<select class="detail-field-select" data-field="sales_team">${options}</select>`;
+    }
+
+    // Make Fulfillment Ops editable (dynamic user dropdown)
+    const fulfillmentOpsEl = document.getElementById('detailFulfillmentOps');
+    if (fulfillmentOpsEl && allUsers.length > 0) {
+        const currentValue = fulfillmentOpsEl.textContent;
+        let options = allUsers.map(user =>
+            `<option value="${user.name}" ${user.name === currentValue ? 'selected' : ''}>${user.name}</option>`
+        ).join('');
+        fulfillmentOpsEl.innerHTML = `<select class="detail-field-select" data-field="fulfillment_ops">${options}</select>`;
+    }
+
     // Additional Info textarea (find it by looking for the field)
     const additionalInfoSection = document.querySelector('.detail-section:has(h3)');
     if (additionalInfoSection) {
