@@ -625,26 +625,47 @@ app.post('/api/clients/:id/comments', ensureAuthenticated, async (req, res) => {
         // Get client info for notifications
         const client = await getClientById(req.params.id);
 
-        // Send email notifications to mentioned users
-        if (mentionedUsers && mentionedUsers.length > 0) {
+        if (client) {
             const { pool } = require('./database');
 
-            for (const userId of mentionedUsers) {
-                const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+            // Send email notifications to assigned users (sales team + fulfillment ops)
+            const assignedUserNames = [client.sales_team, client.fulfillment_ops].filter(Boolean);
+            for (const userName of assignedUserNames) {
+                // Don't notify the person who wrote the comment
+                if (userName === req.user.name) continue;
+
+                const userResult = await pool.query(
+                    'SELECT * FROM users WHERE name = $1 LIMIT 1',
+                    [userName]
+                );
                 if (userResult.rows.length > 0) {
-                    const mentionedUser = userResult.rows[0];
+                    const assignedUser = userResult.rows[0];
                     await sendMentionNotification(
-                        mentionedUser,
+                        assignedUser,
                         req.user.name,
                         client.client_name,
                         commentText
                     );
                 }
             }
-        }
 
-        // Notify Tony of new comment
-        if (client) {
+            // Send email notifications to mentioned users
+            if (mentionedUsers && mentionedUsers.length > 0) {
+                for (const userId of mentionedUsers) {
+                    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+                    if (userResult.rows.length > 0) {
+                        const mentionedUser = userResult.rows[0];
+                        await sendMentionNotification(
+                            mentionedUser,
+                            req.user.name,
+                            client.client_name,
+                            commentText
+                        );
+                    }
+                }
+            }
+
+            // Notify Tony of new comment
             await notifyTony('comment_added', client, {
                 description: `New comment by ${req.user.name}: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : ''}"`
             });
