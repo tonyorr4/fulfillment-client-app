@@ -240,7 +240,64 @@
 
 ---
 
-### 7. Slack Integration - Client Tile Summary
+### 7. @Mention Autocomplete in Comments
+**Status:** Not Started
+**Priority:** 🟡 Medium
+**Description:** Add autocomplete/typeahead functionality when typing "@" in comment box to mention users.
+
+**Requirements:**
+- [ ] Detect when user types "@" in comment textarea
+- [ ] Show dropdown popup with list of all Fulfillment app users
+- [ ] Filter user list as user continues typing (e.g., "@To" shows "Tony Orr")
+- [ ] Allow user to select from filtered list (click or keyboard navigation)
+- [ ] Insert selected user's name into comment (e.g., "@Tony Orr")
+- [ ] Parse @mentions from comment text and extract user IDs
+- [ ] Send mentionedUsers array to backend API
+- [ ] Style mention dropdown to match app design
+
+**Implementation Approach:**
+1. **Frontend - Autocomplete UI:**
+   - Listen for "@" keypress in comment textarea
+   - Show absolutely positioned dropdown below cursor
+   - Populate with `allUsers` array (already loaded)
+   - Filter list based on characters typed after "@"
+   - Handle arrow key navigation and Enter to select
+   - Insert mention on selection
+
+2. **Frontend - Mention Parsing:**
+   - Extract all @mentions from comment text using regex
+   - Match mention names to user IDs from `allUsers` array
+   - Pass `mentionedUsers: [userId1, userId2, ...]` to POST /api/clients/:id/comments
+
+3. **Backend (Already Complete):**
+   - ✅ Server already accepts `mentionedUsers` array
+   - ✅ Server already sends emails to mentioned users via `sendMentionNotification()`
+
+**Files to Modify:**
+- `public/app.js` - Add autocomplete logic and mention parsing
+- `public/styles.css` - Style mention dropdown
+- `public/index.html` - May need dropdown container element
+
+**Libraries to Consider:**
+- Option 1: Build custom autocomplete (lightweight, full control)
+- Option 2: Use library like Tribute.js (specialized for @mentions)
+
+**Example UX:**
+```
+User types: "Hey @"
+  → Dropdown shows: [Tony Orr, Ian, Austin Mashburn, ...]
+
+User types: "Hey @To"
+  → Dropdown shows: [Tony Orr]
+
+User selects "Tony Orr"
+  → Comment becomes: "Hey @Tony Orr "
+  → mentionedUsers array includes Tony's user ID
+```
+
+---
+
+### 8. Slack Integration - Client Tile Summary
 **Status:** Not Started
 **Priority:** 🟡 Medium
 **Description:** Send Slack notifications/summaries for client tile updates.
@@ -291,25 +348,25 @@
 
 ## 🟢 LOW PRIORITY / FUTURE ENHANCEMENTS
 
-### 7. Better Subtask Management
+### 9. Better Subtask Management
 - [ ] Ability to edit subtask text
 - [ ] Ability to delete subtasks
 - [ ] Subtask due dates
 - [ ] Subtask priority levels
 
-### 8. Advanced Filtering/Search
+### 10. Advanced Filtering/Search
 - [ ] Filter tiles by sales team member
 - [ ] Filter tiles by date range
 - [ ] Filter by client type
 - [ ] Advanced search with multiple criteria
 
-### 9. Analytics Dashboard
+### 11. Analytics Dashboard
 - [ ] Average time in each status
 - [ ] Approval rate (auto vs manual)
 - [ ] Sales team performance metrics
 - [ ] Client type distribution
 
-### 10. Export Functionality
+### 12. Export Functionality
 - [ ] Export clients to CSV
 - [ ] Export filtered view to Excel
 - [ ] Generate PDF reports
