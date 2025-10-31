@@ -720,7 +720,7 @@ function loadCommentsIntoModal(comments) {
                         <span class="comment-author">${comment.user_name}</span>
                         <span class="comment-time">${timeAgo}</span>
                     </div>
-                    <div class="comment-text">${escapeHtml(comment.comment_text)}</div>
+                    <div class="comment-text">${highlightMentions(comment.comment_text)}</div>
                 </div>
             `;
 
@@ -732,6 +732,18 @@ function loadCommentsIntoModal(comments) {
 }
 
 // ==================== MENTION AUTOCOMPLETE ====================
+
+// Highlight mentions in comment text
+function highlightMentions(text) {
+    // First escape HTML
+    const escaped = escapeHtml(text);
+
+    // Then wrap @mentions in span tags
+    // Match @Username (letters, spaces, and common name characters)
+    const mentionRegex = /@([A-Za-z][A-Za-z\s]*?)(?=\s|$|[^\w])/g;
+
+    return escaped.replace(mentionRegex, '<span class="mention">$&</span>');
+}
 
 let mentionState = {
     isActive: false,
