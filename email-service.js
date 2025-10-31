@@ -43,10 +43,17 @@ async function sendEmail(emailData) {
             email: process.env.BREVO_SENDER_EMAIL
         };
 
+        console.log('📧 Attempting to send email:');
+        console.log('   To:', emailData.recipientEmail);
+        console.log('   From:', process.env.BREVO_SENDER_EMAIL);
+        console.log('   Subject:', emailData.subject);
+
         // Send email
         const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
-        console.log('Email sent successfully:', result.messageId);
+        console.log('✉️ Brevo API Response:', JSON.stringify(result, null, 2));
+        console.log('✉️ Email sent successfully to:', emailData.recipientEmail);
+        console.log('✉️ Message ID:', result.messageId);
         return {
             success: true,
             messageId: result.messageId,
