@@ -202,12 +202,16 @@ app.get('/api/users/all', ensureAuthenticated, async (req, res) => {
     try {
         const { pool } = require('./database');
 
-        // Get all approved users, ordered by name
+        // Get only approved users with Fulfillment app roles, ordered by name
+        // Roles: Admin, Sr. Ops, Supervisor, Sales, Fulfillment, Viewer
+        const fulfillmentRoles = ['Admin', 'Sr. Ops', 'Supervisor', 'Sales', 'Fulfillment', 'Viewer'];
+
         const result = await pool.query(
             `SELECT id, name, email, role, picture
              FROM users
-             WHERE approved = TRUE
-             ORDER BY name ASC`
+             WHERE approved = TRUE AND role = ANY($1)
+             ORDER BY name ASC`,
+            [fulfillmentRoles]
         );
 
         res.json({

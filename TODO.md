@@ -68,26 +68,28 @@
 ## 🟠 HIGH PRIORITY FEATURES
 
 ### 3. Subtask Assignment to Specific People
-**Status:** Not Started
+**Status:** ✅ COMPLETE & VERIFIED
 **Priority:** 🟠 High
-**Description:** Currently subtasks show assignee initials but there's no way to assign or change the assignee. Need dropdown to select assignee when creating subtask.
+**Description:** Subtasks can now be assigned to specific people when creating or editing them.
 
-**Requirements:**
-- [ ] Add assignee dropdown when creating new subtask
-- [ ] Dropdown should show all approved users (Admin, Sr. Ops, Supervisor, Sales, Viewer roles)
-- [ ] Default to current user
-- [ ] Allow changing assignee on existing subtasks
-- [ ] Store assignee name in subtasks table
+**Resolution:**
+- [x] Add assignee dropdown when creating new subtask ✅
+- [x] Dropdown shows all approved Fulfillment app users (Admin, Sr. Ops, Supervisor, Sales, Fulfillment, Viewer roles) ✅
+- [x] Defaults to current user ✅
+- [x] Allow changing assignee on existing subtasks via dropdown ✅
+- [x] Store assignee name in subtasks table ✅
 
-**API Changes Needed:**
-- [ ] GET /api/users/all - fetch all approved users for assignee dropdown
-- [ ] Modify POST /api/clients/:id/subtasks to accept assignee parameter
-- [ ] Add PATCH /api/subtasks/:id/assignee to change assignee
+**API Changes Implemented:**
+- [x] GET /api/users/all - fetches all approved users for assignee dropdown (filtered by Fulfillment roles) ✅
+- [x] POST /api/clients/:id/subtasks already accepted assignee parameter ✅
+- [x] PATCH /api/subtasks/:id/assignee - changes assignee on existing subtasks ✅
 
-**Files to Modify:**
-- `server.js` - Add new endpoints
-- `public/index.html` - Add assignee dropdown to subtask creation
-- `public/app.js` - Update addSubtask function
+**Files Modified:**
+- `server.js` - Added GET /api/users/all and PATCH /api/subtasks/:id/assignee endpoints
+- `public/index.html` - Added assignee dropdown to subtask creation with CSS styling
+- `public/app.js` - Updated addSubtask function and loadSubtasksIntoModal to handle assignee selection
+
+**Completed:** October 31, 2025
 
 ---
 
@@ -358,10 +360,10 @@
 
 ## 📊 CURRENT STATUS SUMMARY
 
-- ✅ **Working:** Basic Kanban board, OAuth authentication, client creation, drag-and-drop, form data persistence, sales team display
+- ✅ **Working:** Basic Kanban board, OAuth authentication, client creation, drag-and-drop, form data persistence, sales team display, subtask assignment
 - ⚠️ **Needs Fix:** None
 - 🚧 **In Progress:** None
-- ❌ **Not Started:** Email notifications, permissions, Slack integration, subtask assignment
+- ❌ **Not Started:** Email notifications, permissions, Slack integration
 
 ---
 
