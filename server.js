@@ -23,7 +23,11 @@ const {
 const {
     sendMentionNotification,
     sendNewRequestNotification,
-    sendClientSetupNotification
+    sendClientSetupNotification,
+    notifyTony,
+    sendStatusChangeNotification,
+    sendSubtaskCompletionNotification,
+    sendApprovalDecisionNotification
 } = require('./email-service');
 
 const app = express();
@@ -339,12 +343,20 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
             auto_approved: autoApproved
         });
 
-        // Send email notification
+        // Fetch sales team user for email notification
+        const { pool } = require('./database');
+        const salesUserResult = await pool.query(
+            'SELECT id, name, email FROM users WHERE name = $1 LIMIT 1',
+            [salesTeam]
+        );
+        const salesTeamUser = salesUserResult.rows.length > 0 ? salesUserResult.rows[0] : null;
+
+        // Send email notification to sales team and Tony
         await sendNewRequestNotification({
             ...newClient,
             sales_team: salesTeam,
             fulfillment_ops: 'Ian'
-        });
+        }, salesTeamUser);
 
         res.status(201).json({
             success: true,
@@ -361,6 +373,11 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
 app.patch('/api/clients/:id/status', ensureAuthenticated, async (req, res) => {
     try {
         const { status, clientApproved } = req.body;
+
+        // Get current client data to track old status
+        const oldClient = await getClientById(req.params.id);
+        const oldStatus = oldClient ? oldClient.status : null;
+
         const client = await updateClientStatus(req.params.id, status, clientApproved);
 
         if (!client) {
@@ -370,8 +387,14 @@ app.patch('/api/clients/:id/status', ensureAuthenticated, async (req, res) => {
         // Log activity
         await logActivity(client.id, req.user.id, 'status_changed', {
             new_status: status,
+            old_status: oldStatus,
             client_approved: clientApproved
         });
+
+        // Send status change notification to Tony
+        if (oldStatus && oldStatus !== status) {
+            await sendStatusChangeNotification(client, oldStatus, status);
+        }
 
         // If moved to client-setup, create auto-subtasks
         if (status === 'client-setup') {
@@ -428,6 +451,9 @@ app.patch('/api/clients/:id/approval', ensureAuthenticated, async (req, res) => 
             new_status: newStatus
         });
 
+        // Send approval decision notification to Tony
+        await sendApprovalDecisionNotification(client, approval, req.user);
+
         res.json({ success: true, client });
     } catch (error) {
         console.error('Error updating client approval:', error);
@@ -476,6 +502,14 @@ app.post('/api/clients/:id/subtasks', ensureAuthenticated, async (req, res) => {
             assignee
         });
 
+        // Notify Tony of new subtask
+        const client = await getClientById(req.params.id);
+        if (client) {
+            await notifyTony('subtask_created', client, {
+                description: `New subtask created: "${subtaskText}" assigned to ${assignee}`
+            });
+        }
+
         res.status(201).json({ success: true, subtask });
     } catch (error) {
         console.error('Error creating subtask:', error);
@@ -497,6 +531,14 @@ app.patch('/api/subtasks/:id/toggle', ensureAuthenticated, async (req, res) => {
             subtask_id: subtask.id,
             completed: subtask.completed
         });
+
+        // Send notification to Tony when subtask is completed (not uncompleted)
+        if (subtask.completed) {
+            const client = await getClientById(subtask.client_id);
+            if (client) {
+                await sendSubtaskCompletionNotification(client, subtask, req.user);
+            }
+        }
 
         res.json({ success: true, subtask });
     } catch (error) {
@@ -535,6 +577,14 @@ app.patch('/api/subtasks/:id/assignee', ensureAuthenticated, async (req, res) =>
             new_assignee: assignee
         });
 
+        // Notify Tony of assignee change
+        const client = await getClientById(subtask.client_id);
+        if (client) {
+            await notifyTony('assignment_changed', client, {
+                description: `Subtask "${subtask.subtask_text}" assignee changed to ${assignee}`
+            });
+        }
+
         res.json({ success: true, subtask });
     } catch (error) {
         console.error('Error updating subtask assignee:', error);
@@ -572,10 +622,12 @@ app.post('/api/clients/:id/comments', ensureAuthenticated, async (req, res) => {
             mentioned_users: mentionedUsers
         });
 
+        // Get client info for notifications
+        const client = await getClientById(req.params.id);
+
         // Send email notifications to mentioned users
         if (mentionedUsers && mentionedUsers.length > 0) {
             const { pool } = require('./database');
-            const client = await getClientById(req.params.id);
 
             for (const userId of mentionedUsers) {
                 const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
@@ -589,6 +641,13 @@ app.post('/api/clients/:id/comments', ensureAuthenticated, async (req, res) => {
                     );
                 }
             }
+        }
+
+        // Notify Tony of new comment
+        if (client) {
+            await notifyTony('comment_added', client, {
+                description: `New comment by ${req.user.name}: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : ''}"`
+            });
         }
 
         // Return comment with user info

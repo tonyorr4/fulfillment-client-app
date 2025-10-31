@@ -117,12 +117,21 @@ View at: ${process.env.APP_URL}
 /**
  * Send notification when a new fulfillment request is created
  */
-async function sendNewRequestNotification(requestData) {
+async function sendNewRequestNotification(requestData, salesTeamUser) {
+    const statusText = requestData.auto_approved ? 'AUTO-APPROVED - Moved to Signing' : 'Pending Review';
+    const statusColor = requestData.auto_approved ? '#00875a' : '#ff991f';
+
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #0052cc; border-bottom: 2px solid #0052cc; padding-bottom: 10px;">
-                New Fulfillment Request
+                Fulfillment Request ${requestData.auto_approved ? 'Auto-Approved' : 'Submitted'}
             </h2>
+
+            <div style="background-color: ${statusColor}15; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid ${statusColor};">
+                <p style="color: ${statusColor}; font-weight: bold; margin: 0;">
+                    ${statusText}
+                </p>
+            </div>
 
             <div style="background-color: #f4f5f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
                 <p><strong>Client Name:</strong> ${requestData.client_name}</p>
@@ -132,14 +141,13 @@ async function sendNewRequestNotification(requestData) {
                 <p><strong>Est. Inbound Date:</strong> ${new Date(requestData.est_inbound_date).toLocaleDateString()}</p>
                 <p><strong>Sales Team:</strong> ${requestData.sales_team}</p>
                 <p><strong>Fulfillment Ops:</strong> ${requestData.fulfillment_ops}</p>
-                ${requestData.auto_approved ? '<p style="color: #00875a; font-weight: bold;">✓ AUTO-APPROVED</p>' : '<p style="color: #ff991f; font-weight: bold;">⏳ Awaiting Review</p>'}
             </div>
 
             <div style="margin: 20px 0;">
                 <a href="${process.env.APP_URL}"
                    style="display: inline-block; background-color: #0052cc; color: white;
                           padding: 12px 24px; text-decoration: none; border-radius: 4px;">
-                    View Request
+                    View Client Tile
                 </a>
             </div>
 
@@ -151,7 +159,9 @@ async function sendNewRequestNotification(requestData) {
     `;
 
     const textContent = `
-New Fulfillment Request
+Fulfillment Request ${requestData.auto_approved ? 'Auto-Approved' : 'Submitted'}
+
+${statusText}
 
 Client Name: ${requestData.client_name}
 Client ID: ${requestData.client_id}
@@ -160,18 +170,25 @@ Avg Orders/Month: ${requestData.avg_orders}
 Est. Inbound Date: ${new Date(requestData.est_inbound_date).toLocaleDateString()}
 Sales Team: ${requestData.sales_team}
 Fulfillment Ops: ${requestData.fulfillment_ops}
-${requestData.auto_approved ? 'Status: AUTO-APPROVED' : 'Status: Awaiting Review'}
 
 View at: ${process.env.APP_URL}
     `;
 
-    return sendEmail({
-        recipientEmail: process.env.ADMIN_NOTIFICATION_EMAIL,
-        recipientName: 'Admin',
-        subject: `New Fulfillment Request: ${requestData.client_name}`,
-        htmlContent: htmlContent,
-        textContent: textContent,
-        senderName: 'Sincro Fulfillment'
+    // Send to sales team member if email provided
+    if (salesTeamUser && salesTeamUser.email) {
+        await sendEmail({
+            recipientEmail: salesTeamUser.email,
+            recipientName: salesTeamUser.name,
+            subject: `Fulfillment Request ${requestData.auto_approved ? '[Auto-Approved]' : '[Pending Review]'} - ${requestData.client_name}`,
+            htmlContent: htmlContent,
+            textContent: textContent,
+            senderName: 'Sincro Fulfillment'
+        });
+    }
+
+    // Always notify Tony
+    await notifyTony('new_request', requestData, {
+        description: `${requestData.auto_approved ? 'Auto-approved and moved to Signing' : 'Submitted for manual review'}`
     });
 }
 
@@ -232,9 +249,115 @@ async function sendClientSetupNotification(clientData, salesTeam, fulfillmentOps
     });
 }
 
+/**
+ * Notify Tony of any update to any client tile
+ */
+async function notifyTony(eventType, clientData, details = {}) {
+    const tonyEmail = 'tony.orr@easyship.com';
+
+    // Map event types to readable descriptions
+    const eventDescriptions = {
+        'new_request': `New Request Created`,
+        'status_changed': `Status Changed to ${details.newStatus}`,
+        'approval_decision': `Approval Decision: ${details.approval}`,
+        'comment_added': `Comment Added`,
+        'subtask_completed': `Subtask Completed`,
+        'subtask_created': `New Subtask Created`,
+        'assignment_changed': `Assignment Changed`
+    };
+
+    const eventDescription = eventDescriptions[eventType] || eventType;
+
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #0052cc; border-bottom: 2px solid #0052cc; padding-bottom: 10px;">
+                ${eventDescription}
+            </h2>
+
+            <div style="background-color: #f4f5f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                <p><strong>Client:</strong> ${clientData.client_name}</p>
+                <p><strong>Client ID:</strong> ${clientData.client_id}</p>
+                <p><strong>Status:</strong> ${clientData.status || 'N/A'}</p>
+                ${details.description ? `<p><strong>Details:</strong> ${details.description}</p>` : ''}
+            </div>
+
+            <div style="margin: 20px 0;">
+                <a href="${process.env.APP_URL}"
+                   style="display: inline-block; background-color: #0052cc; color: white;
+                          padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                    View Client
+                </a>
+            </div>
+
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;
+                        color: #666; font-size: 12px;">
+                <p>This is an automated notification from Sincro Fulfillment.</p>
+            </div>
+        </div>
+    `;
+
+    const textContent = `
+${eventDescription}
+
+Client: ${clientData.client_name}
+Client ID: ${clientData.client_id}
+Status: ${clientData.status || 'N/A'}
+${details.description ? `Details: ${details.description}` : ''}
+
+View at: ${process.env.APP_URL}
+    `;
+
+    return sendEmail({
+        recipientEmail: tonyEmail,
+        recipientName: 'Tony Orr',
+        subject: `[Fulfillment] ${eventDescription} - ${clientData.client_name}`,
+        htmlContent: htmlContent,
+        textContent: textContent,
+        senderName: 'Sincro Fulfillment'
+    });
+}
+
+/**
+ * Send notification for status changes
+ */
+async function sendStatusChangeNotification(clientData, oldStatus, newStatus) {
+    // Notify Tony
+    await notifyTony('status_changed', clientData, {
+        newStatus: newStatus,
+        description: `Status changed from ${oldStatus} to ${newStatus}`
+    });
+}
+
+/**
+ * Send notification for subtask completion
+ */
+async function sendSubtaskCompletionNotification(clientData, subtaskData, completedBy) {
+    // Notify Tony
+    await notifyTony('subtask_completed', clientData, {
+        description: `"${subtaskData.subtask_text}" completed by ${completedBy.name}`
+    });
+}
+
+/**
+ * Send notification for approval decisions
+ */
+async function sendApprovalDecisionNotification(clientData, approval, decidedBy) {
+    const approvalText = approval === 'yes' ? 'Approved' : approval === 'no' ? 'Rejected' : 'Auto-Approved';
+
+    // Notify Tony
+    await notifyTony('approval_decision', clientData, {
+        approval: approvalText,
+        description: `Approval decision: ${approvalText} by ${decidedBy.name}`
+    });
+}
+
 module.exports = {
     sendEmail,
     sendMentionNotification,
     sendNewRequestNotification,
-    sendClientSetupNotification
+    sendClientSetupNotification,
+    notifyTony,
+    sendStatusChangeNotification,
+    sendSubtaskCompletionNotification,
+    sendApprovalDecisionNotification
 };
