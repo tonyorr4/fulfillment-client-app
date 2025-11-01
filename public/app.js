@@ -9,6 +9,48 @@ let currentClientCard = null;
 let draggedCard = null;
 let isDragging = false;
 let dragStartTime = 0;
+let currentStatusFilter = 'all';
+
+// ==================== THEME MANAGEMENT ====================
+
+// Initialize theme on page load
+function initializeTheme() {
+    // Check localStorage for saved theme preference
+    const savedTheme = localStorage.getItem('theme') || 'light'; // Default to light
+    applyTheme(savedTheme);
+}
+
+// Apply theme to document
+function applyTheme(theme) {
+    const html = document.documentElement;
+    const themeIcon = document.getElementById('theme-icon');
+
+    if (theme === 'dark') {
+        html.setAttribute('data-theme', 'dark');
+        if (themeIcon) {
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        }
+    } else {
+        html.removeAttribute('data-theme');
+        if (themeIcon) {
+            themeIcon.classList.remove('fa-sun');
+            themeIcon.classList.add('fa-moon');
+        }
+    }
+
+    // Save to localStorage
+    localStorage.setItem('theme', theme);
+}
+
+// Toggle between light and dark theme
+function toggleTheme() {
+    console.log('🌙 Theme toggle clicked');
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    console.log(`Switching from ${currentTheme || 'light'} to ${newTheme}`);
+    applyTheme(newTheme);
+}
 
 // ==================== AUTHENTICATION ====================
 
@@ -37,8 +79,13 @@ async function checkAuth() {
 
 // Display user info in header
 function displayUser(user) {
-    const userAvatar = document.querySelector('.user-avatar');
-    const userName = userAvatar.nextElementSibling;
+    const userAvatar = document.getElementById('userAvatar');
+    const userName = document.getElementById('userName');
+
+    if (!userAvatar || !userName) {
+        console.error('User display elements not found');
+        return;
+    }
 
     const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase();
     userAvatar.textContent = initials;
@@ -146,22 +193,37 @@ async function loadAllClients() {
 
 // Render all clients on the board
 function renderAllClients() {
-    // Clear all columns
-    document.querySelectorAll('.column-cards').forEach(col => {
-        col.innerHTML = '';
-    });
+    const cardGrid = document.getElementById('cardGrid');
+    if (!cardGrid) {
+        console.error('Card grid container not found');
+        return;
+    }
 
-    // Render each client in its appropriate column
-    allClients.forEach(client => {
+    // Clear the grid
+    cardGrid.innerHTML = '';
+
+    // Filter clients based on current status filter
+    let filteredClients = allClients;
+    if (currentStatusFilter !== 'all') {
+        filteredClients = allClients.filter(client => client.status === currentStatusFilter);
+    }
+
+    // Render each client as a card
+    filteredClients.forEach(client => {
         const card = createClientCardElement(client);
-        const targetColumn = document.querySelector(`.column[data-status="${client.status}"] .column-cards`);
-        if (targetColumn) {
-            targetColumn.appendChild(card);
-        }
+        cardGrid.appendChild(card);
     });
 
-    // Update column counts
-    updateColumnCounts();
+    // Show empty state if no clients
+    if (filteredClients.length === 0) {
+        cardGrid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-tertiary);">
+                <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                <p style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">No clients found</p>
+                <p style="font-size: 14px;">Try adjusting your filters or search query</p>
+            </div>
+        `;
+    }
 }
 
 // Create client card element
@@ -176,62 +238,114 @@ function createClientCardElement(client) {
     });
 
     const card = document.createElement('div');
-    card.className = `card ${client.status}`;
-    // Disable drag for Sales users
-    const isSalesRole = currentUser && currentUser.role === 'Sales';
-    card.draggable = !isSalesRole;
+    card.className = `card status-${client.status}`;
     card.setAttribute('data-id', client.id);
     card.setAttribute('data-client-data', JSON.stringify(client));
-    if (!isSalesRole) {
-        card.ondragstart = drag;
-    }
+    card.setAttribute('data-status', client.status);
 
-    const formattedDate = new Date(client.est_inbound_date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-    });
+    // Format date
+    const dateObj = new Date(client.est_inbound_date);
+    const formattedDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
 
-    // Approval badge
-    let approvalBadge = '';
-    if (client.auto_approved) {
-        approvalBadge = '<span class="card-badge auto-approved"><i class="fas fa-check"></i> Auto-Approved</span>';
+    // Get initials for logo
+    const clientInitials = client.client_name
+        .split(' ')
+        .map(word => word[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
+
+    // Status label
+    const statusLabels = {
+        'new-request': 'New Request',
+        'signing': 'Signing',
+        'client-setup': 'Client Setup',
+        'setup-complete': 'Setup Complete',
+        'inbound': 'Inbound',
+        'fulfilling': 'Fulfilling',
+        'complete': 'Complete',
+        'not-pursuing': 'Not Pursuing'
+    };
+
+    // Approval indicator
+    let approvalIndicator = '';
+    if (client.auto_approved || client.client_approved === 'yes') {
+        approvalIndicator = `
+            <div class="approval-indicator approved">
+                <i class="fas fa-check-circle"></i>
+            </div>
+        `;
     } else if (client.status === 'new-request') {
-        approvalBadge = '<span class="card-badge needs-review"><i class="fas fa-clock"></i> Needs Review</span>';
+        approvalIndicator = `
+            <div class="approval-indicator review">
+                <i class="fas fa-exclamation-circle"></i>
+            </div>
+        `;
     }
 
-    // Task badge
+    // Subtasks count
     const completedSubtasks = client.subtasks ? client.subtasks.filter(s => s.completed).length : 0;
     const totalSubtasks = client.subtasks ? client.subtasks.length : 0;
-    let taskBadge = '';
-    if (totalSubtasks > 0) {
-        taskBadge = `<span class="card-badge"><i class="fas fa-tasks"></i> ${completedSubtasks}/${totalSubtasks}</span>`;
-    }
+
+    // Comments count
+    const commentsCount = client.comments ? client.comments.length : 0;
 
     // Assignee avatars
     const salesInitials = getInitials(client.sales_team);
     const opsInitials = getInitials(client.fulfillment_ops);
 
+    // Priority (you can add this field to your database or calculate it)
+    const priority = 'medium'; // Default - you can make this dynamic
+
     card.innerHTML = `
-        <div class="card-id">${client.client_id}</div>
-        <div class="card-title">${client.client_name}</div>
-        <div class="card-meta">
-            <span class="card-badge"><i class="fas fa-calendar"></i> ${formattedDate}</span>
-            <span class="card-badge"><i class="fas fa-box"></i> ${client.client_type}</span>
-            <span class="card-badge"><i class="fas fa-chart-line"></i> ${client.avg_orders}/mo</span>
-            ${taskBadge}
-            ${approvalBadge}
-            <div class="assignee-group">
-                <div class="card-assignee" title="Sales: ${client.sales_team}">${salesInitials}</div>
-                <div class="card-assignee" title="Ops: ${client.fulfillment_ops}" style="background-color: #a29bfe; color: #6c5ce7;">${opsInitials}</div>
+        ${approvalIndicator}
+        <div class="card-banner">
+            <div class="card-logo">${clientInitials}</div>
+        </div>
+        <div class="card-body">
+            <div class="card-header">
+                <span class="card-id">${client.client_id}</span>
+            </div>
+            <div class="card-name">${client.client_name}</div>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                ${statusLabels[client.status] || client.status}
+            </div>
+            <div class="card-meta-grid">
+                <div class="meta-box">
+                    <div class="meta-label">Est. Inbound</div>
+                    <div class="meta-value">${formattedDate}</div>
+                </div>
+                <div class="meta-box">
+                    <div class="meta-label">Orders/Mo</div>
+                    <div class="meta-value">${client.avg_orders || '-'}</div>
+                </div>
+            </div>
+            <div class="meta-box" style="margin-bottom: 16px;">
+                <div class="meta-label">Client Type</div>
+                <div class="meta-value" style="font-size: 12px;">${client.client_type || '-'}</div>
+            </div>
+            <div class="card-footer">
+                <div class="assignees">
+                    <div class="avatar sales" title="Sales: ${client.sales_team}">${salesInitials}</div>
+                    <div class="avatar fulfillment" title="Fulfillment: ${client.fulfillment_ops}">${opsInitials}</div>
+                </div>
+                <div class="card-stats">
+                    <div class="stat-badge">
+                        <i class="fas fa-check"></i>
+                        ${completedSubtasks}/${totalSubtasks}
+                    </div>
+                    <div class="stat-badge">
+                        <i class="far fa-comment"></i>
+                        ${commentsCount}
+                    </div>
+                </div>
             </div>
         </div>
     `;
 
     card.addEventListener('click', function(e) {
-        if (!isDragging) {
-            openClientDetail(client.id);
-        }
+        openClientDetail(client.id);
     });
 
     return card;
@@ -1168,62 +1282,8 @@ function updateSidebarFields(client) {
 }
 
 // ==================== DRAG AND DROP ====================
-
-function drag(event) {
-    dragStartTime = Date.now();
-    draggedCard = event.target.closest('.card');
-    if (!draggedCard) return;
-
-    setTimeout(() => {
-        if (draggedCard) {
-            isDragging = true;
-            draggedCard.classList.add('dragging');
-        }
-    }, 50);
-
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/html', draggedCard.innerHTML);
-
-    draggedCard.addEventListener('dragend', function() {
-        this.classList.remove('dragging');
-        setTimeout(() => {
-            isDragging = false;
-            draggedCard = null;
-        }, 100);
-    }, { once: true });
-}
-
-function allowDrop(event) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-
-    const columnCards = event.currentTarget;
-    if (!columnCards.classList.contains('drag-over')) {
-        columnCards.classList.add('drag-over');
-    }
-}
-
-function dragLeave(event) {
-    event.currentTarget.classList.remove('drag-over');
-}
-
-async function drop(event) {
-    event.preventDefault();
-    const columnCards = event.currentTarget;
-    columnCards.classList.remove('drag-over');
-
-    if (draggedCard) {
-        const newStatus = columnCards.closest('.column').getAttribute('data-status');
-        const clientData = JSON.parse(draggedCard.getAttribute('data-client-data'));
-
-        // Update status via API
-        const success = await updateClientStatus(clientData.id, newStatus);
-
-        if (success) {
-            showToast(`Client moved to ${formatStatusName(newStatus)}`);
-        }
-    }
-}
+// Note: Drag and drop removed for grid layout.
+// Status can be changed via the detail modal dropdown.
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -1273,10 +1333,13 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function updateColumnCounts() {
-    document.querySelectorAll('.column').forEach(column => {
-        const count = column.querySelectorAll('.card').length;
-        column.querySelector('.column-count').textContent = count;
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
     });
 }
 
@@ -1326,15 +1389,32 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
 }
 
+// Filter by status (status pills)
+function filterByStatus(status, buttonElement) {
+    currentStatusFilter = status;
+
+    // Update active pill
+    document.querySelectorAll('.filter-pill').forEach(pill => {
+        pill.classList.remove('active');
+    });
+    if (buttonElement) {
+        buttonElement.classList.add('active');
+    }
+
+    // Re-render clients with new filter
+    renderAllClients();
+}
+
+// Search filter
 function filterCards() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const cards = document.querySelectorAll('.card');
 
     cards.forEach(card => {
-        const title = card.querySelector('.card-title').textContent.toLowerCase();
-        const id = card.querySelector('.card-id').textContent.toLowerCase();
+        const cardName = card.querySelector('.card-name').textContent.toLowerCase();
+        const cardId = card.querySelector('.card-id').textContent.toLowerCase();
 
-        if (title.includes(searchTerm) || id.includes(searchTerm)) {
+        if (cardName.includes(searchTerm) || cardId.includes(searchTerm)) {
             card.style.display = 'block';
         } else {
             card.style.display = 'none';
@@ -1344,9 +1424,17 @@ function filterCards() {
 
 function showAllCards() {
     document.getElementById('searchInput').value = '';
-    document.querySelectorAll('.card').forEach(card => {
-        card.style.display = 'block';
+    currentStatusFilter = 'all';
+
+    // Reset active pill to "All Clients"
+    document.querySelectorAll('.filter-pill').forEach(pill => {
+        pill.classList.remove('active');
+        if (pill.getAttribute('data-filter') === 'all') {
+            pill.classList.add('active');
+        }
     });
+
+    renderAllClients();
 }
 
 // Close modal when clicking outside
@@ -1715,17 +1803,14 @@ function openAutomationModal() {
     alert('Automation builder coming soon! For now, automations are managed via the database.\n\nDefault automations have been created:\n- Auto-assign Ian to fulfillment ops\n- Auto-approve simple clients\n- Create client setup subtasks');
 }
 
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 // ==================== INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Sincro Fulfillment Client App loaded');
-    checkAuth(); // Check authentication and load data
+
+    // Initialize theme first (before loading data)
+    initializeTheme();
+
+    // Check authentication and load data
+    checkAuth();
 });
