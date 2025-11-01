@@ -198,7 +198,6 @@ app.post('/api/auth/request-access', async (req, res) => {
 app.get('/api/users/by-role', ensureAuthenticated, async (req, res) => {
     try {
         const { roles } = req.query; // Comma-separated roles: "Admin,Sales"
-        const { pool } = require('./database');
 
         if (!roles) {
             return res.status(400).json({ error: 'Roles parameter required' });
@@ -228,7 +227,6 @@ app.get('/api/users/by-role', ensureAuthenticated, async (req, res) => {
 // Get all approved users (for assignee dropdown)
 app.get('/api/users/all', ensureAuthenticated, async (req, res) => {
     try {
-        const { pool } = require('./database');
 
         // Get only users who have active access to the Fulfillment app (app_id = 5)
         // Join with user_app_access to filter by app-specific access
@@ -371,7 +369,6 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
         });
 
         // Fetch sales team user for email notification
-        const { pool } = require('./database');
         const salesUserResult = await pool.query(
             'SELECT id, name, email FROM users WHERE name = $1 LIMIT 1',
             [salesTeam]
@@ -530,7 +527,6 @@ app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, r
             fulfillment_ops
         } = req.body;
 
-        const { pool } = require('./database');
 
         // Build dynamic update query for provided fields
         const updates = [];
@@ -630,7 +626,6 @@ app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, r
 // Delete client
 app.delete('/api/clients/:id', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
     try {
-        const { pool } = require('./database');
         await pool.query('DELETE FROM clients WHERE id = $1', [req.params.id]);
 
         // Log activity
@@ -740,7 +735,6 @@ app.patch('/api/subtasks/:id/toggle', ensureAuthenticated, async (req, res) => {
 app.patch('/api/subtasks/:id/assignee', ensureAuthenticated, async (req, res) => {
     try {
         const { assignee } = req.body;
-        const { pool } = require('./database');
 
         if (!assignee) {
             return res.status(400).json({ error: 'Assignee parameter required' });
@@ -817,8 +811,7 @@ app.post('/api/clients/:id/comments', ensureAuthenticated, async (req, res) => {
         const client = await getClientById(req.params.id);
 
         if (client) {
-            const { pool } = require('./database');
-
+    
             // Send email notifications to assigned users (sales team + fulfillment ops)
             const assignedUserNames = [client.sales_team, client.fulfillment_ops].filter(Boolean);
             for (const userName of assignedUserNames) {
@@ -869,7 +862,6 @@ app.post('/api/clients/:id/comments', ensureAuthenticated, async (req, res) => {
         }
 
         // Return comment with user info
-        const { pool } = require('./database');
         const result = await pool.query(`
             SELECT c.*, u.name as user_name, u.email as user_email, u.picture as user_picture
             FROM comments c
@@ -1269,7 +1261,6 @@ app.get('/api/health', (req, res) => {
 // Get Slack summary for a client
 app.get('/api/clients/:id/slack-summary', ensureAuthenticated, async (req, res) => {
     try {
-        const { pool } = require('./database');
 
         // Get summary from database
         const result = await pool.query(
@@ -1299,7 +1290,6 @@ app.get('/api/clients/:id/slack-summary', ensureAuthenticated, async (req, res) 
 // Generate or refresh Slack summary for a client
 app.post('/api/clients/:id/slack-summary/refresh', ensureAuthenticated, async (req, res) => {
     try {
-        const { pool } = require('./database');
         const clientId = req.params.id;
 
         // Get client details
@@ -1418,7 +1408,6 @@ app.post('/api/clients/:id/slack-summary/refresh', ensureAuthenticated, async (r
 // Auto-match Slack channel for a client
 app.post('/api/clients/:id/slack-auto-match', ensureAuthenticated, async (req, res) => {
     try {
-        const { pool } = require('./database');
         const clientId = req.params.id;
 
         // Get client details
