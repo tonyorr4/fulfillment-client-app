@@ -42,7 +42,7 @@ If deploying to Railway, you **MUST** update these environment variables to use 
 - **Automated Subtasks**: Creates assigned tasks when clients move to Client Setup
 - **Drag-and-Drop**: Move clients between columns with visual feedback
 - **Comments & Mentions**: Tag team members with @ mentions
-- **Email Notifications**: Brevo integration for mentions and status updates
+- **Email Notifications**: Gmail/Nodemailer integration for mentions and status updates
 - **Google OAuth**: Secure authentication with auto-admin for Tony
 - **PostgreSQL Database**: Production-grade data persistence
 
@@ -51,7 +51,7 @@ If deploying to Railway, you **MUST** update these environment variables to use 
 - **Backend**: Node.js + Express
 - **Database**: PostgreSQL
 - **Authentication**: Passport.js + Google OAuth 2.0
-- **Email**: Brevo (formerly Sendinblue)
+- **Email**: Nodemailer with Gmail SMTP
 - **Security**: Helmet, rate limiting, CORS
 - **Frontend**: Vanilla JavaScript (no frameworks)
 
@@ -77,7 +77,10 @@ Required variables:
 - `GOOGLE_CLIENT_ID`: Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET`: Google OAuth secret
 - `SESSION_SECRET`: Random secret key
-- `BREVO_API_KEY`: Brevo API key (optional)
+
+Optional email variables:
+- `GMAIL_USER`: Gmail/Google Workspace email address
+- `GMAIL_APP_PASSWORD`: Gmail app-specific password
 
 ### 3. Set Up Google OAuth
 
@@ -144,8 +147,8 @@ git push -u origin main
    - `GOOGLE_CLIENT_SECRET`
    - `GOOGLE_CALLBACK_URL` (https://your-app.railway.app/auth/google/callback)
    - `SESSION_SECRET`
-   - `BREVO_API_KEY`
-   - `BREVO_SENDER_EMAIL`
+   - `GMAIL_USER` (your Gmail/Google Workspace email)
+   - `GMAIL_APP_PASSWORD` (Gmail app-specific password)
    - `ADMIN_NOTIFICATION_EMAIL`
    - `AUTO_ADMIN_EMAIL=tony.orr@easyship.com`
    - `APP_URL` (https://your-app.railway.app)

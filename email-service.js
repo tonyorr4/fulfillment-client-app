@@ -1,57 +1,67 @@
-const brevo = require('@getbrevo/brevo');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+// Create reusable transporter
+let transporter = null;
+
 /**
- * Send email notification using Brevo
+ * Initialize Gmail SMTP transporter
+ */
+function initializeTransporter() {
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+        console.warn('Gmail credentials not configured. Email service disabled.');
+        return null;
+    }
+
+    return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.GMAIL_USER,
+            pass: process.env.GMAIL_APP_PASSWORD
+        }
+    });
+}
+
+/**
+ * Send email notification using Gmail/Nodemailer
  * @param {Object} emailData - Email details
  */
 async function sendEmail(emailData) {
-    // Check if Brevo API key is configured
-    if (!process.env.BREVO_API_KEY) {
-        console.warn('Brevo API key not configured. Skipping email.');
-        return { success: false, message: 'Brevo API key not configured' };
+    // Initialize transporter if not already done
+    if (!transporter) {
+        transporter = initializeTransporter();
+    }
+
+    // Check if transporter is available
+    if (!transporter) {
+        console.warn('Gmail not configured. Skipping email.');
+        return { success: false, message: 'Gmail not configured' };
     }
 
     try {
-        // Initialize API client
-        const apiInstance = new brevo.TransactionalEmailsApi();
-        apiInstance.setApiKey(
-            brevo.TransactionalEmailsApiApiKeys.apiKey,
-            process.env.BREVO_API_KEY
-        );
-
-        // Create email object
-        const sendSmtpEmail = new brevo.SendSmtpEmail();
-
-        sendSmtpEmail.subject = emailData.subject;
-        sendSmtpEmail.htmlContent = emailData.htmlContent;
-        sendSmtpEmail.textContent = emailData.textContent;
-
-        sendSmtpEmail.sender = {
-            name: emailData.senderName || 'Sincro Fulfillment',
-            email: process.env.BREVO_SENDER_EMAIL
-        };
-
-        sendSmtpEmail.to = [
-            {
-                email: emailData.recipientEmail,
-                name: emailData.recipientName
-            }
-        ];
-
-        sendSmtpEmail.replyTo = {
-            email: process.env.BREVO_SENDER_EMAIL
+        const mailOptions = {
+            from: {
+                name: emailData.senderName || 'Sincro Fulfillment',
+                address: process.env.GMAIL_USER
+            },
+            to: {
+                name: emailData.recipientName,
+                address: emailData.recipientEmail
+            },
+            subject: emailData.subject,
+            text: emailData.textContent,
+            html: emailData.htmlContent,
+            replyTo: process.env.GMAIL_USER
         };
 
         console.log('📧 Attempting to send email:');
         console.log('   To:', emailData.recipientEmail);
-        console.log('   From:', process.env.BREVO_SENDER_EMAIL);
+        console.log('   From:', process.env.GMAIL_USER);
         console.log('   Subject:', emailData.subject);
 
         // Send email
-        const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+        const result = await transporter.sendMail(mailOptions);
 
-        console.log('✉️ Brevo API Response:', JSON.stringify(result, null, 2));
         console.log('✉️ Email sent successfully to:', emailData.recipientEmail);
         console.log('✉️ Message ID:', result.messageId);
         return {

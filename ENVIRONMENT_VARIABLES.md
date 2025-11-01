@@ -163,35 +163,36 @@ APP_URL=https://fulfillment-client-app-production.railway.app
 
 ## Optional Variables (Email Notifications)
 
-### 10. BREVO_API_KEY
-**Variable Name:** `BREVO_API_KEY`
-**Value:** Your Brevo (formerly Sendinblue) API key
-**Description:** API key for sending email notifications
+### 10. GMAIL_USER
+**Variable Name:** `GMAIL_USER`
+**Value:** Your Gmail or Google Workspace email address
+**Description:** Email address used to send notifications via Gmail SMTP
 **Required:** No (app will work without email notifications)
-**How to Get:**
-1. Go to https://app.brevo.com/
-2. Create account or login
-3. Go to "Settings" → "API Keys"
-4. Click "Generate a new API key"
-5. Copy the API key
+**Important:** Must be a Gmail or Google Workspace account with 2FA enabled
 
 **Example:**
 ```
-BREVO_API_KEY=xkeysib-1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+GMAIL_USER=sincro-reply@gosincro.com
 ```
 
 ---
 
-### 11. BREVO_SENDER_EMAIL
-**Variable Name:** `BREVO_SENDER_EMAIL`
-**Value:** Email address you want to send notifications from
-**Description:** "From" email address for all notifications
-**Required:** No (only needed if using Brevo)
-**Important:** Must be verified in Brevo dashboard
+### 11. GMAIL_APP_PASSWORD
+**Variable Name:** `GMAIL_APP_PASSWORD`
+**Value:** Gmail app-specific password (16 characters)
+**Description:** App password for Gmail SMTP authentication (NOT your regular Gmail password)
+**Required:** No (only needed if using email notifications)
+**How to Get:**
+1. Enable 2-Factor Authentication on your Google account
+2. Go to https://myaccount.google.com/apppasswords
+3. Select "Mail" as the app
+4. Select "Other (Custom name)" as device, enter "Fulfillment App"
+5. Click "Generate"
+6. Copy the 16-character password (format: xxxx xxxx xxxx xxxx)
 
 **Example:**
 ```
-BREVO_SENDER_EMAIL=notifications@easyship.com
+GMAIL_APP_PASSWORD=abcd efgh ijkl mnop
 ```
 
 ---
@@ -200,7 +201,7 @@ BREVO_SENDER_EMAIL=notifications@easyship.com
 **Variable Name:** `ADMIN_NOTIFICATION_EMAIL`
 **Value:** Email to receive admin notifications
 **Description:** Where to send important admin alerts
-**Required:** No (only needed if using Brevo)
+**Required:** No (only needed if using email notifications)
 
 **Example:**
 ```
@@ -233,8 +234,8 @@ SESSION_SECRET=your-super-secret-random-key-change-this-to-something-secure-1234
 AUTO_ADMIN_EMAIL=tony.orr@easyship.com
 
 # Email Notifications (Optional)
-# BREVO_API_KEY=xkeysib-1234567890abcdef
-# BREVO_SENDER_EMAIL=notifications@easyship.com
+# GMAIL_USER=sincro-reply@gosincro.com
+# GMAIL_APP_PASSWORD=abcd efgh ijkl mnop
 # ADMIN_NOTIFICATION_EMAIL=tony.orr@easyship.com
 ```
 
@@ -254,8 +255,8 @@ AUTO_ADMIN_EMAIL=tony.orr@easyship.com
 | `GOOGLE_CALLBACK_URL` | `https://fulfillment-client-app-production.up.railway.app/auth/google/callback` |
 | `SESSION_SECRET` | (same as local or generate new) |
 | `AUTO_ADMIN_EMAIL` | `tony.orr@easyship.com` |
-| `BREVO_API_KEY` | (optional - your Brevo key) |
-| `BREVO_SENDER_EMAIL` | (optional) `notifications@easyship.com` |
+| `GMAIL_USER` | (optional) `sincro-reply@gosincro.com` |
+| `GMAIL_APP_PASSWORD` | (optional - Gmail app password) |
 | `ADMIN_NOTIFICATION_EMAIL` | (optional) `tony.orr@easyship.com` |
 
 **IMPORTANT:**
