@@ -8,6 +8,7 @@ require('dotenv').config();
 
 const { passport, ensureAuthenticated, checkAutoAdmin } = require('./auth-config');
 const {
+    pool,
     initializeDatabase,
     getAllClients,
     getClientById,
@@ -20,6 +21,7 @@ const {
     createComment,
     logActivity
 } = require('./database');
+const { triggerAutomations } = require('./automation-engine');
 const {
     sendMentionNotification,
     sendNewRequestNotification,
@@ -317,20 +319,7 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
         // Generate client ID if not provided
         const generatedClientId = clientId || `SFC-${Math.floor(Math.random() * 900 + 100)}`;
 
-        // Check if manual review is required
-        // DO NOT auto-approve if ANY of these conditions are true:
-        // 1. Battery/DG goods = Yes
-        // 2. Number of Pallets = 50-100 or >100
-        // 3. Number of SKUs = 50-100 or >100
-        const requiresManualReview =
-            battery === 'Yes' ||
-            numPallets === '50-100' || numPallets === '>100' ||
-            numSkus === '50-100' || numSkus === '>100';
-
-        // Auto-approve only if manual review is NOT required
-        const autoApproved = !requiresManualReview;
-
-        // Create client data
+        // Create client data with default values (automations will modify these)
         const clientData = {
             client_id: generatedClientId,
             client_name: clientName,
@@ -346,23 +335,39 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
             barcoding,
             additional_info: additionalInfo || null,
             sales_team: salesTeam,
-            fulfillment_ops: 'Ian', // Auto-assigned to Ian
-            auto_approved: autoApproved,
+            fulfillment_ops: null, // Will be set by automation
+            auto_approved: false, // Will be set by automation
             created_by: req.user.id,
-            // Set status explicitly: 'signing' if auto-approved, 'new-request' if needs manual review
-            status: autoApproved ? 'signing' : 'new-request'
+            status: 'new-request' // Default status, will be changed by automation if auto-approved
         };
 
         console.log('💾 Creating client with data:', JSON.stringify(clientData, null, 2));
 
-        const newClient = await createClient(clientData);
+        let newClient = await createClient(clientData);
 
-        console.log(`✓ Client created: ${newClient.client_id} | Status: ${newClient.status} | Auto-approved: ${autoApproved}`);
-        console.log('✓ Client data stored:', JSON.stringify(newClient, null, 2));
+        console.log(`✓ Client created: ${newClient.client_id} | Initial status: ${newClient.status}`);
+
+        // Trigger automations for client_created event
+        console.log('🤖 Triggering automations for client_created event...');
+        const automationSummary = await triggerAutomations(
+            pool,
+            'client_created',
+            newClient.id,
+            newClient,
+            req.user.id
+        );
+
+        console.log(`✓ Automations completed: ${automationSummary.automationsExecuted}/${automationSummary.automationsTriggered} executed, ${automationSummary.totalActions} actions performed`);
+
+        // Re-fetch client to get updated data from automations
+        newClient = await getClientById(newClient.id);
+
+        console.log(`✓ Final client state: Status: ${newClient.status} | Auto-approved: ${newClient.auto_approved} | Fulfillment Ops: ${newClient.fulfillment_ops}`);
 
         // Log activity
         await logActivity(newClient.id, req.user.id, 'client_created', {
-            auto_approved: autoApproved
+            auto_approved: newClient.auto_approved,
+            automation_summary: automationSummary
         });
 
         // Fetch sales team user for email notification
@@ -373,17 +378,19 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
         );
         const salesTeamUser = salesUserResult.rows.length > 0 ? salesUserResult.rows[0] : null;
 
-        // Send email notification to sales team and Tony
-        await sendNewRequestNotification({
+        // Send email notification to sales team and Tony (non-blocking)
+        sendNewRequestNotification({
             ...newClient,
             sales_team: salesTeam,
             fulfillment_ops: 'Ian'
-        }, salesTeamUser);
+        }, salesTeamUser).catch(err => {
+            console.error('❌ Email notification failed (non-blocking):', err.message);
+        });
 
         res.status(201).json({
             success: true,
             client: newClient,
-            autoApproved
+            autoApproved: newClient.auto_approved
         });
     } catch (error) {
         console.error('Error creating client:', error);
@@ -400,44 +407,47 @@ app.patch('/api/clients/:id/status', ensureAuthenticated, blockSalesRole, async 
         const oldClient = await getClientById(req.params.id);
         const oldStatus = oldClient ? oldClient.status : null;
 
-        const client = await updateClientStatus(req.params.id, status, clientApproved);
+        let client = await updateClientStatus(req.params.id, status, clientApproved);
 
         if (!client) {
             return res.status(404).json({ error: 'Client not found' });
         }
 
+        // Trigger automations for status_changed event
+        console.log(`🤖 Triggering automations for status_changed event (${oldStatus} → ${status})...`);
+        const automationSummary = await triggerAutomations(
+            pool,
+            'status_changed',
+            client.id,
+            client,
+            req.user.id
+        );
+
+        console.log(`✓ Automations completed: ${automationSummary.automationsExecuted}/${automationSummary.automationsTriggered} executed, ${automationSummary.totalActions} actions performed`);
+
+        // Re-fetch client to include any subtasks created by automations
+        client = await getClientById(client.id);
+
         // Log activity
         await logActivity(client.id, req.user.id, 'status_changed', {
             new_status: status,
             old_status: oldStatus,
-            client_approved: clientApproved
+            client_approved: clientApproved,
+            automation_summary: automationSummary
         });
 
-        // Send status change notification to Tony
+        // Send status change notification to Tony (non-blocking)
         if (oldStatus && oldStatus !== status) {
-            await sendStatusChangeNotification(client, oldStatus, status);
+            sendStatusChangeNotification(client, oldStatus, status).catch(err => {
+                console.error('❌ Status change notification failed (non-blocking):', err.message);
+            });
         }
 
-        // If moved to client-setup, create auto-subtasks
+        // If moved to client-setup, send email notifications (subtasks now created by automation)
         if (status === 'client-setup') {
-            // Create security deposit confirmation subtask
-            await createSubtask(
-                client.id,
-                'Security deposit confirmation',
-                client.sales_team,
-                true
-            );
-
-            // Create WMS setup subtask
-            await createSubtask(
-                client.id,
-                'WMS Setup (Client and billing parameters)',
-                client.fulfillment_ops,
-                true
-            );
-
-            // Send email notifications to assignees
-            await sendClientSetupNotification(client, client.sales_team, client.fulfillment_ops);
+            sendClientSetupNotification(client, client.sales_team, client.fulfillment_ops).catch(err => {
+                console.error('❌ Client setup notification failed (non-blocking):', err.message);
+            });
         }
 
         res.json({ success: true, client });
@@ -461,20 +471,38 @@ app.patch('/api/clients/:id/approval', ensureAuthenticated, blockSalesRole, asyn
             newStatus = 'not-pursuing';
         }
 
-        const client = await updateClientStatus(req.params.id, newStatus, clientApproved);
+        let client = await updateClientStatus(req.params.id, newStatus, clientApproved);
 
         if (!client) {
             return res.status(404).json({ error: 'Client not found' });
         }
 
+        // Trigger automations for approval_changed event
+        console.log(`🤖 Triggering automations for approval_changed event (approval: ${approval})...`);
+        const automationSummary = await triggerAutomations(
+            pool,
+            'approval_changed',
+            client.id,
+            client,
+            req.user.id
+        );
+
+        console.log(`✓ Automations completed: ${automationSummary.automationsExecuted}/${automationSummary.automationsTriggered} executed`);
+
+        // Re-fetch client to get any updates from automations
+        client = await getClientById(client.id);
+
         // Log activity
         await logActivity(client.id, req.user.id, 'approval_changed', {
             approval,
-            new_status: newStatus
+            new_status: newStatus,
+            automation_summary: automationSummary
         });
 
-        // Send approval decision notification to Tony
-        await sendApprovalDecisionNotification(client, approval, req.user);
+        // Send approval decision notification to Tony (non-blocking)
+        sendApprovalDecisionNotification(client, approval, req.user).catch(err => {
+            console.error('❌ Approval decision notification failed (non-blocking):', err.message);
+        });
 
         res.json({ success: true, client });
     } catch (error) {
@@ -640,11 +668,13 @@ app.post('/api/clients/:id/subtasks', ensureAuthenticated, async (req, res) => {
             assignee
         });
 
-        // Notify Tony of new subtask
+        // Notify Tony of new subtask (non-blocking)
         const client = await getClientById(req.params.id);
         if (client) {
-            await notifyTony('subtask_created', client, {
+            notifyTony('subtask_created', client, {
                 description: `New subtask created: "${subtaskText}" assigned to ${assignee}`
+            }).catch(err => {
+                console.error('❌ Subtask creation notification failed (non-blocking):', err.message);
             });
         }
 
@@ -664,18 +694,39 @@ app.patch('/api/subtasks/:id/toggle', ensureAuthenticated, async (req, res) => {
             return res.status(404).json({ error: 'Subtask not found' });
         }
 
-        // Log activity
-        await logActivity(subtask.client_id, req.user.id, 'subtask_toggled', {
-            subtask_id: subtask.id,
-            completed: subtask.completed
-        });
-
-        // Send notification to Tony when subtask is completed (not uncompleted)
+        // Trigger automations when subtask is completed (not when uncompleted)
         if (subtask.completed) {
             const client = await getClientById(subtask.client_id);
             if (client) {
-                await sendSubtaskCompletionNotification(client, subtask, req.user);
+                console.log(`🤖 Triggering automations for subtask_completed event (subtask: ${subtask.subtask_text})...`);
+                const automationSummary = await triggerAutomations(
+                    pool,
+                    'subtask_completed',
+                    client.id,
+                    client,
+                    req.user.id
+                );
+
+                console.log(`✓ Automations completed: ${automationSummary.automationsExecuted}/${automationSummary.automationsTriggered} executed`);
+
+                // Send notification to Tony (non-blocking)
+                sendSubtaskCompletionNotification(client, subtask, req.user).catch(err => {
+                    console.error('❌ Subtask completion notification failed (non-blocking):', err.message);
+                });
+
+                // Log activity with automation summary
+                await logActivity(subtask.client_id, req.user.id, 'subtask_toggled', {
+                    subtask_id: subtask.id,
+                    completed: subtask.completed,
+                    automation_summary: automationSummary
+                });
             }
+        } else {
+            // Log activity for uncomplete (no automations)
+            await logActivity(subtask.client_id, req.user.id, 'subtask_toggled', {
+                subtask_id: subtask.id,
+                completed: subtask.completed
+            });
         }
 
         res.json({ success: true, subtask });
@@ -715,11 +766,13 @@ app.patch('/api/subtasks/:id/assignee', ensureAuthenticated, async (req, res) =>
             new_assignee: assignee
         });
 
-        // Notify Tony of assignee change
+        // Notify Tony of assignee change (non-blocking)
         const client = await getClientById(subtask.client_id);
         if (client) {
-            await notifyTony('assignment_changed', client, {
+            notifyTony('assignment_changed', client, {
                 description: `Subtask "${subtask.subtask_text}" assignee changed to ${assignee}`
+            }).catch(err => {
+                console.error('❌ Assignment change notification failed (non-blocking):', err.message);
             });
         }
 
@@ -778,12 +831,14 @@ app.post('/api/clients/:id/comments', ensureAuthenticated, async (req, res) => {
                 );
                 if (userResult.rows.length > 0) {
                     const assignedUser = userResult.rows[0];
-                    await sendMentionNotification(
+                    sendMentionNotification(
                         assignedUser,
                         req.user.name,
                         client.client_name,
                         commentText
-                    );
+                    ).catch(err => {
+                        console.error('❌ Mention notification failed (non-blocking):', err.message);
+                    });
                 }
             }
 
@@ -793,19 +848,23 @@ app.post('/api/clients/:id/comments', ensureAuthenticated, async (req, res) => {
                     const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
                     if (userResult.rows.length > 0) {
                         const mentionedUser = userResult.rows[0];
-                        await sendMentionNotification(
+                        sendMentionNotification(
                             mentionedUser,
                             req.user.name,
                             client.client_name,
                             commentText
-                        );
+                        ).catch(err => {
+                            console.error('❌ Mention notification failed (non-blocking):', err.message);
+                        });
                     }
                 }
             }
 
-            // Notify Tony of new comment
-            await notifyTony('comment_added', client, {
+            // Notify Tony of new comment (non-blocking)
+            notifyTony('comment_added', client, {
                 description: `New comment by ${req.user.name}: "${commentText.substring(0, 100)}${commentText.length > 100 ? '...' : ''}"`
+            }).catch(err => {
+                console.error('❌ Comment notification to Tony failed (non-blocking):', err.message);
             });
         }
 
@@ -850,6 +909,353 @@ app.get('/api/export', ensureAuthenticated, checkAutoAdmin, async (req, res) => 
     } catch (error) {
         console.error('Error exporting data:', error);
         res.status(500).json({ error: 'Failed to export data' });
+    }
+});
+
+// ==================== AUTOMATION MANAGEMENT ROUTES ====================
+
+// Get all automations
+app.get('/api/automations', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT a.*, u.name as created_by_name
+             FROM automations a
+             LEFT JOIN users u ON a.created_by = u.id
+             ORDER BY a.execution_order ASC, a.id ASC`
+        );
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching automations:', error);
+        res.status(500).json({ error: 'Failed to fetch automations' });
+    }
+});
+
+// Get single automation by ID
+app.get('/api/automations/:id', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(
+            `SELECT a.*, u.name as created_by_name
+             FROM automations a
+             LEFT JOIN users u ON a.created_by = u.id
+             WHERE a.id = $1`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Automation not found' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching automation:', error);
+        res.status(500).json({ error: 'Failed to fetch automation' });
+    }
+});
+
+// Create new automation
+app.post('/api/automations', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
+    try {
+        const {
+            name,
+            description,
+            trigger_event,
+            conditions,
+            actions,
+            enabled = true,
+            execution_order = 0
+        } = req.body;
+
+        // Validation
+        if (!name || !trigger_event) {
+            return res.status(400).json({ error: 'Name and trigger_event are required' });
+        }
+
+        if (!conditions || !actions) {
+            return res.status(400).json({ error: 'Conditions and actions are required' });
+        }
+
+        // Validate trigger_event
+        const validTriggers = ['client_created', 'status_changed', 'approval_changed', 'subtask_completed', 'client_updated'];
+        if (!validTriggers.includes(trigger_event)) {
+            return res.status(400).json({
+                error: `Invalid trigger_event. Must be one of: ${validTriggers.join(', ')}`
+            });
+        }
+
+        // Insert automation
+        const result = await pool.query(
+            `INSERT INTO automations
+             (name, description, trigger_event, conditions, actions, enabled, execution_order, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING *`,
+            [
+                name,
+                description || null,
+                trigger_event,
+                JSON.stringify(conditions),
+                JSON.stringify(actions),
+                enabled,
+                execution_order,
+                req.user.id
+            ]
+        );
+
+        console.log(`✓ Created automation: "${name}" by ${req.user.name}`);
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Error creating automation:', error);
+        res.status(500).json({ error: 'Failed to create automation' });
+    }
+});
+
+// Update automation
+app.patch('/api/automations/:id', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            name,
+            description,
+            trigger_event,
+            conditions,
+            actions,
+            enabled,
+            execution_order
+        } = req.body;
+
+        // Check if automation exists
+        const existing = await pool.query('SELECT * FROM automations WHERE id = $1', [id]);
+        if (existing.rows.length === 0) {
+            return res.status(404).json({ error: 'Automation not found' });
+        }
+
+        // Build update query dynamically
+        const updates = [];
+        const values = [];
+        let paramCount = 1;
+
+        if (name !== undefined) {
+            updates.push(`name = $${paramCount++}`);
+            values.push(name);
+        }
+        if (description !== undefined) {
+            updates.push(`description = $${paramCount++}`);
+            values.push(description);
+        }
+        if (trigger_event !== undefined) {
+            updates.push(`trigger_event = $${paramCount++}`);
+            values.push(trigger_event);
+        }
+        if (conditions !== undefined) {
+            updates.push(`conditions = $${paramCount++}`);
+            values.push(JSON.stringify(conditions));
+        }
+        if (actions !== undefined) {
+            updates.push(`actions = $${paramCount++}`);
+            values.push(JSON.stringify(actions));
+        }
+        if (enabled !== undefined) {
+            updates.push(`enabled = $${paramCount++}`);
+            values.push(enabled);
+        }
+        if (execution_order !== undefined) {
+            updates.push(`execution_order = $${paramCount++}`);
+            values.push(execution_order);
+        }
+
+        updates.push(`updated_at = CURRENT_TIMESTAMP`);
+        values.push(id);
+
+        const result = await pool.query(
+            `UPDATE automations SET ${updates.join(', ')}
+             WHERE id = $${paramCount}
+             RETURNING *`,
+            values
+        );
+
+        console.log(`✓ Updated automation ID ${id} by ${req.user.name}`);
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error updating automation:', error);
+        res.status(500).json({ error: 'Failed to update automation' });
+    }
+});
+
+// Toggle automation enabled/disabled
+app.patch('/api/automations/:id/toggle', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(
+            `UPDATE automations
+             SET enabled = NOT enabled, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1
+             RETURNING *`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Automation not found' });
+        }
+
+        const automation = result.rows[0];
+        console.log(`✓ Toggled automation "${automation.name}" to ${automation.enabled ? 'enabled' : 'disabled'}`);
+        res.json(automation);
+    } catch (error) {
+        console.error('Error toggling automation:', error);
+        res.status(500).json({ error: 'Failed to toggle automation' });
+    }
+});
+
+// Delete automation
+app.delete('/api/automations/:id', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Get automation info before deleting
+        const automation = await pool.query('SELECT * FROM automations WHERE id = $1', [id]);
+        if (automation.rows.length === 0) {
+            return res.status(404).json({ error: 'Automation not found' });
+        }
+
+        // Delete automation (logs will be set to null due to ON DELETE SET NULL)
+        await pool.query('DELETE FROM automations WHERE id = $1', [id]);
+
+        console.log(`✓ Deleted automation "${automation.rows[0].name}" by ${req.user.name}`);
+        res.json({ success: true, message: 'Automation deleted' });
+    } catch (error) {
+        console.error('Error deleting automation:', error);
+        res.status(500).json({ error: 'Failed to delete automation' });
+    }
+});
+
+// Update execution order for multiple automations
+app.post('/api/automations/reorder', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
+    try {
+        const { automations } = req.body; // Array of { id, execution_order }
+
+        if (!Array.isArray(automations)) {
+            return res.status(400).json({ error: 'automations must be an array' });
+        }
+
+        // Update each automation's execution order
+        for (const auto of automations) {
+            await pool.query(
+                'UPDATE automations SET execution_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+                [auto.execution_order, auto.id]
+            );
+        }
+
+        console.log(`✓ Reordered ${automations.length} automations by ${req.user.name}`);
+        res.json({ success: true, message: 'Automations reordered' });
+    } catch (error) {
+        console.error('Error reordering automations:', error);
+        res.status(500).json({ error: 'Failed to reorder automations' });
+    }
+});
+
+// ==================== AUTOMATION LOGS ROUTES ====================
+
+// Get automation logs (paginated)
+app.get('/api/automation-logs', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
+    try {
+        const { limit = 50, offset = 0, automation_id, client_id } = req.query;
+
+        let query = `
+            SELECT al.*, a.name as automation_name, c.client_name, c.client_id as client_identifier
+            FROM automation_logs al
+            LEFT JOIN automations a ON al.automation_id = a.id
+            LEFT JOIN clients c ON al.client_id = c.id
+            WHERE 1=1
+        `;
+        const values = [];
+        let paramCount = 1;
+
+        if (automation_id) {
+            query += ` AND al.automation_id = $${paramCount++}`;
+            values.push(automation_id);
+        }
+
+        if (client_id) {
+            query += ` AND al.client_id = $${paramCount++}`;
+            values.push(client_id);
+        }
+
+        query += ` ORDER BY al.created_at DESC LIMIT $${paramCount++} OFFSET $${paramCount}`;
+        values.push(limit, offset);
+
+        const result = await pool.query(query, values);
+
+        // Get total count
+        let countQuery = 'SELECT COUNT(*) FROM automation_logs WHERE 1=1';
+        const countValues = [];
+        let countParamCount = 1;
+
+        if (automation_id) {
+            countQuery += ` AND automation_id = $${countParamCount++}`;
+            countValues.push(automation_id);
+        }
+        if (client_id) {
+            countQuery += ` AND client_id = $${countParamCount++}`;
+            countValues.push(client_id);
+        }
+
+        const countResult = await pool.query(countQuery, countValues);
+        const total = parseInt(countResult.rows[0].count);
+
+        res.json({
+            logs: result.rows,
+            pagination: {
+                total,
+                limit: parseInt(limit),
+                offset: parseInt(offset),
+                hasMore: offset + result.rows.length < total
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching automation logs:', error);
+        res.status(500).json({ error: 'Failed to fetch automation logs' });
+    }
+});
+
+// Get single automation log
+app.get('/api/automation-logs/:id', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(
+            `SELECT al.*, a.name as automation_name, c.client_name, c.client_id as client_identifier
+             FROM automation_logs al
+             LEFT JOIN automations a ON al.automation_id = a.id
+             LEFT JOIN clients c ON al.client_id = c.id
+             WHERE al.id = $1`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Log not found' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching automation log:', error);
+        res.status(500).json({ error: 'Failed to fetch automation log' });
+    }
+});
+
+// Delete automation log
+app.delete('/api/automation-logs/:id', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await pool.query('DELETE FROM automation_logs WHERE id = $1', [id]);
+
+        res.json({ success: true, message: 'Log deleted' });
+    } catch (error) {
+        console.error('Error deleting automation log:', error);
+        res.status(500).json({ error: 'Failed to delete log' });
     }
 });
 

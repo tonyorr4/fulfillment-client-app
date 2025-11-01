@@ -859,6 +859,221 @@
                 opacity: 1;
             }
         }
+
+        /* Navigation Tabs */
+        .nav-tabs {
+            background-color: #fff;
+            border-bottom: 1px solid #dfe1e6;
+            padding: 0 20px;
+            display: flex;
+            gap: 0;
+        }
+
+        .nav-tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #5e6c84;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover {
+            color: #172b4d;
+            background-color: #f4f5f7;
+        }
+
+        .nav-tab.active {
+            color: #0052cc;
+            border-bottom-color: #0052cc;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Automations Panel */
+        .automations-panel {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .automations-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .automations-header h2 {
+            font-size: 24px;
+            color: #172b4d;
+        }
+
+        .automation-card {
+            background: white;
+            border: 1px solid #dfe1e6;
+            border-radius: 3px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+
+        .automation-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .automation-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .automation-card-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .automation-card-title h3 {
+            font-size: 16px;
+            color: #172b4d;
+            margin: 0;
+        }
+
+        .automation-enabled-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .automation-enabled-badge.enabled {
+            background-color: #e3fcef;
+            color: #006644;
+        }
+
+        .automation-enabled-badge.disabled {
+            background-color: #f4f5f7;
+            color: #5e6c84;
+        }
+
+        .automation-card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .automation-card-body {
+            color: #5e6c84;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .automation-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #f4f5f7;
+            font-size: 12px;
+            color: #5e6c84;
+        }
+
+        .automation-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .automation-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #5e6c84;
+        }
+
+        .automation-empty i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .3s;
+            border-radius: 20px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #00875a;
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            color: #5e6c84;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            background-color: #f4f5f7;
+            color: #172b4d;
+        }
+
+        .btn-icon.delete:hover {
+            background-color: #ffebe6;
+            color: #de350b;
+        }
     </style>
 </head>
 <body>
@@ -879,18 +1094,30 @@
         </div>
     </div>
 
-    <!-- Board Controls -->
-    <div class="board-controls">
-        <div class="search-box">
-            <input type="text" placeholder="Search clients..." id="searchInput" onkeyup="filterCards()">
-        </div>
-        <button class="btn btn-secondary" onclick="showAllCards()">
-            <i class="fas fa-eye"></i> Show All
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('board')">
+            <i class="fas fa-th"></i> Board
+        </button>
+        <button class="nav-tab" id="automations-tab" onclick="switchTab('automations')" style="display: none;">
+            <i class="fas fa-robot"></i> Automations
         </button>
     </div>
 
-    <!-- Kanban Board -->
-    <div class="board-container">
+    <!-- Board Tab Content -->
+    <div id="board-tab" class="tab-content active">
+        <!-- Board Controls -->
+        <div class="board-controls">
+            <div class="search-box">
+                <input type="text" placeholder="Search clients..." id="searchInput" onkeyup="filterCards()">
+            </div>
+            <button class="btn btn-secondary" onclick="showAllCards()">
+                <i class="fas fa-eye"></i> Show All
+            </button>
+        </div>
+
+        <!-- Kanban Board -->
+        <div class="board-container">
         <div class="board" id="board">
             <!-- New Request Column -->
             <div class="column" data-status="new-request">
@@ -1347,6 +1574,27 @@
             <div class="modal-footer">
                 <button class="btn btn-danger" onclick="deleteClient()">Delete</button>
                 <button class="btn btn-secondary" onclick="closeModal('clientDetailModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    </div> <!-- End Board Tab Content -->
+
+    <!-- Automations Tab Content -->
+    <div id="automations-tab-content" class="tab-content">
+        <div class="automations-panel">
+            <div class="automations-header">
+                <h2><i class="fas fa-robot"></i> Automations</h2>
+                <button class="btn btn-success" onclick="openAutomationModal()">
+                    <i class="fas fa-plus"></i> New Automation
+                </button>
+            </div>
+            <div id="automations-list">
+                <!-- Automations loaded dynamically -->
+                <div class="automation-empty">
+                    <i class="fas fa-robot"></i>
+                    <p>Loading automations...</p>
+                </div>
             </div>
         </div>
     </div>

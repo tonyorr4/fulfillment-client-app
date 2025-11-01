@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option 3: Compact List View - Fulfillment Client App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #F5F5F5;
+            color: #333;
+        }
+
+        /* Header */
+        .header {
+            background: white;
+            border-bottom: 1px solid #E0E0E0;
+            padding: 16px 32px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 600;
+            color: #1976D2;
+        }
+
+        .new-request-btn {
+            background: #1976D2;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .new-request-btn:hover {
+            background: #1565C0;
+        }
+
+        /* Controls */
+        .controls {
+            background: white;
+            padding: 12px 32px;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .controls-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .left-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex: 1;
+        }
+
+        .search-box {
+            flex: 0 0 300px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px 8px 36px;
+            border: 1px solid #D0D0D0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #1976D2;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 12px;
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid #D0D0D0;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: #F5F5F5;
+            border-color: #1976D2;
+        }
+
+        .filter-btn.active {
+            background: #E3F2FD;
+            border-color: #1976D2;
+            color: #1976D2;
+            font-weight: 500;
+        }
+
+        .view-count {
+            color: #666;
+            font-size: 13px;
+            padding: 6px 0;
+        }
+
+        /* Table */
+        .table-container {
+            max-width: 1600px;
+            margin: 24px auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table thead {
+            background: #FAFAFA;
+            border-bottom: 2px solid #E0E0E0;
+        }
+
+        .table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .table th:hover {
+            background: #F0F0F0;
+        }
+
+        .table th i {
+            margin-left: 4px;
+            font-size: 10px;
+            color: #999;
+        }
+
+        .table tbody tr {
+            border-bottom: 1px solid #F0F0F0;
+            transition: all 0.2s;
+        }
+
+        .table tbody tr:hover {
+            background: #F9F9F9;
+            cursor: pointer;
+        }
+
+        .table tbody tr.expanded {
+            background: #FFFDE7;
+        }
+
+        .table td {
+            padding: 10px 16px;
+            font-size: 13px;
+            color: #333;
+        }
+
+        /* Status indicator */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-new-request {
+            background: #F3E8FF;
+            color: #7C3AED;
+        }
+        .status-new-request .status-dot { background: #A78BFA; }
+
+        .status-signing {
+            background: #FFF7ED;
+            color: #C2410C;
+        }
+        .status-signing .status-dot { background: #FB923C; }
+
+        .status-setup {
+            background: #ECFEFF;
+            color: #0E7490;
+        }
+        .status-setup .status-dot { background: #22D3EE; }
+
+        .status-pending {
+            background: #ECFDF5;
+            color: #047857;
+        }
+        .status-pending .status-dot { background: #4ADE80; }
+
+        .status-inbound {
+            background: #EFF6FF;
+            color: #1E40AF;
+        }
+        .status-inbound .status-dot { background: #60A5FA; }
+
+        .status-fulfilling {
+            background: #ECFDF5;
+            color: #065F46;
+        }
+        .status-fulfilling .status-dot { background: #10B981; }
+
+        .status-complete {
+            background: #F0FDF4;
+            color: #166534;
+        }
+        .status-complete .status-dot { background: #22C55E; }
+
+        .status-not-pursuing {
+            background: #F9FAFB;
+            color: #6B7280;
+        }
+        .status-not-pursuing .status-dot { background: #9CA3AF; }
+
+        /* Client ID */
+        .client-id {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #1976D2;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .badge-approved {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+
+        .badge-review {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+
+        /* Assignees */
+        .assignees {
+            display: flex;
+            gap: 4px;
+        }
+
+        .avatar-small {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            border: 2px solid white;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .avatar-small.sales {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .avatar-small.fulfillment {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        /* Stats */
+        .stats {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-item i {
+            font-size: 11px;
+            color: #999;
+        }
+
+        /* Expanded row details */
+        .expanded-content {
+            padding: 20px;
+            background: #FFFEF5;
+            border-top: 1px solid #F0E68C;
+        }
+
+        .expanded-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .detail-item {
+            font-size: 12px;
+        }
+
+        .detail-label {
+            color: #666;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .detail-value {
+            color: #333;
+        }
+
+        .expand-icon {
+            transition: transform 0.3s;
+        }
+
+        .expand-icon.rotated {
+            transform: rotate(90deg);
+        }
+
+        /* Info banner */
+        .info-banner {
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            color: white;
+            padding: 10px 32px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* Quick actions */
+        .quick-actions {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        tr:hover .quick-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: #1976D2;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .action-btn:hover {
+            background: #E3F2FD;
+        }
+    </style>
+</head>
+<body>
+    <div class="info-banner">
+        <i class="fas fa-list"></i> UI Mock - Option 3: Compact List View (High Density)
+    </div>
+
+    <div class="header">
+        <div class="header-content">
+            <div class="header-title">
+                <i class="fas fa-box"></i>
+                <span>Fulfillment Client Tracker</span>
+            </div>
+            <button class="new-request-btn">
+                <i class="fas fa-plus"></i> New Request
+            </button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="controls-content">
+            <div class="left-controls">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search by name, ID, or type..." id="searchInput">
+                </div>
+                <div class="filter-group">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="approved">Approved</button>
+                    <button class="filter-btn" data-filter="review">Needs Review</button>
+                    <button class="filter-btn" data-filter="active">Active Only</button>
+                </div>
+            </div>
+            <div class="view-count">
+                Showing <strong id="visibleCount">10</strong> of <strong id="totalCount">10</strong> clients
+            </div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 30px;"></th>
+                    <th>Client ID <i class="fas fa-sort"></i></th>
+                    <th>Client Name <i class="fas fa-sort"></i></th>
+                    <th>Status <i class="fas fa-sort"></i></th>
+                    <th>Est. Inbound <i class="fas fa-sort"></i></th>
+                    <th>Type</th>
+                    <th>Orders/Mo</th>
+                    <th>Approval</th>
+                    <th>Assignees</th>
+                    <th>Progress</th>
+                    <th style="width: 100px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- Rows will be inserted here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const sampleClients = [
+            {
+                id: 'SFC-386',
+                name: 'Soundskrit',
+                status: 'new-request',
+                statusLabel: 'New Request',
+                date: '2024-12-15',
+                type: 'eFulfillment',
+                orders: 150,
+                approval: 'approved',
+                salesAssignee: 'JD',
+                fulfillmentAssignee: 'MK',
+                subtasks: { completed: 0, total: 4 },
+                comments: 2,
+                email: 'contact@soundskrit.com',
+                skus: 25,
+                battery: false,
+                pallets: 3
+            },
+            {
+                id: 'SFC-387',
+                name: 'TechFlow Inc',
+                status: 'signing',
+                statusLabel: 'Signing',
+                date: '2024-12-10',
+                type: 'Dropship',
+                orders: 300,
+                approval: 'approved',
+                salesAssignee: 'AB',
+                fulfillmentAssignee: 'TL',
+                subtasks: { completed: 1, total: 4 },
+                comments: 5,
+                email: 'ops@techflow.com',
+                skus: 50,
+                battery: true,
+                pallets: 5
+            },
+            {
+                id: 'SFC-385',
+                name: 'EcoBox Solutions',
+                status: 'setup',
+                statusLabel: 'Client Setup',
+                date: '2024-12-08',
+                type: 'Crowd Funding',
+                orders: 500,
+                approval: 'approved',
+                salesAssignee: 'JD',
+                fulfillmentAssignee: 'MK',
+                subtasks: { completed: 2, total: 4 },
+                comments: 8,
+                email: 'team@ecobox.io',
+                skus: 10,
+                battery: false,
+                pallets: 8
+            },
+            {
+                id: 'SFC-384',
+                name: 'GreenLeaf Organics',
+                status: 'pending',
+                statusLabel: 'Pending Inbound',
+                date: '2024-12-20',
+                type: 'eFulfillment',
+                orders: 200,
+                approval: 'approved',
+                salesAssignee: 'AB',
+                fulfillmentAssignee: 'TL',
+                subtasks: { completed: 3, total: 4 },
+                comments: 3,
+                email: 'shipping@greenleaf.com',
+                skus: 30,
+                battery: false,
+                pallets: 4
+            },
+            {
+                id: 'SFC-382',
+                name: 'UrbanStyle Co',
+                status: 'inbound',
+                statusLabel: 'Inbound',
+                date: '2024-11-28',
+                type: 'eFulfillment',
+                orders: 400,
+                approval: 'approved',
+                salesAssignee: 'JD',
+                fulfillmentAssignee: 'MK',
+                subtasks: { completed: 4, total: 4 },
+                comments: 12,
+                email: 'logistics@urbanstyle.com',
+                skus: 75,
+                battery: false,
+                pallets: 6
+            },
+            {
+                id: 'SFC-380',
+                name: 'SmartHome Devices',
+                status: 'fulfilling',
+                statusLabel: 'Fulfilling',
+                date: '2024-11-15',
+                type: 'Dropship',
+                orders: 600,
+                approval: 'approved',
+                salesAssignee: 'AB',
+                fulfillmentAssignee: 'TL',
+                subtasks: { completed: 4, total: 4 },
+                comments: 18,
+                email: 'fulfillment@smarthome.com',
+                skus: 120,
+                battery: true,
+                pallets: 10
+            },
+            {
+                id: 'SFC-375',
+                name: 'FitGear Pro',
+                status: 'complete',
+                statusLabel: 'Complete',
+                date: '2024-10-30',
+                type: 'eFulfillment',
+                orders: 350,
+                approval: 'approved',
+                salesAssignee: 'JD',
+                fulfillmentAssignee: 'MK',
+                subtasks: { completed: 4, total: 4 },
+                comments: 22,
+                email: 'orders@fitgearpro.com',
+                skus: 45,
+                battery: false,
+                pallets: 5
+            },
+            {
+                id: 'SFC-388',
+                name: 'BudgetBox LLC',
+                status: 'not-pursuing',
+                statusLabel: 'Not Pursuing',
+                date: '2024-12-01',
+                type: 'eFulfillment',
+                orders: 50,
+                approval: 'review',
+                salesAssignee: 'AB',
+                fulfillmentAssignee: null,
+                subtasks: { completed: 0, total: 4 },
+                comments: 1,
+                email: 'info@budgetbox.com',
+                skus: 5,
+                battery: false,
+                pallets: 1
+            },
+            {
+                id: 'SFC-383',
+                name: 'LuxeBeauty',
+                status: 'setup',
+                statusLabel: 'Client Setup',
+                date: '2024-12-12',
+                type: 'eFulfillment',
+                orders: 250,
+                approval: 'review',
+                salesAssignee: 'JD',
+                fulfillmentAssignee: 'MK',
+                subtasks: { completed: 1, total: 4 },
+                comments: 4,
+                email: 'supply@luxebeauty.com',
+                skus: 60,
+                battery: false,
+                pallets: 4
+            },
+            {
+                id: 'SFC-381',
+                name: 'PetPal Supplies',
+                status: 'inbound',
+                statusLabel: 'Inbound',
+                date: '2024-12-05',
+                type: 'Crowd Funding',
+                orders: 450,
+                approval: 'approved',
+                salesAssignee: 'AB',
+                fulfillmentAssignee: 'TL',
+                subtasks: { completed: 3, total: 4 },
+                comments: 7,
+                email: 'warehouse@petpal.com',
+                skus: 35,
+                battery: false,
+                pallets: 7
+            }
+        ];
+
+        let expandedRow = null;
+
+        function renderTable() {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+
+            sampleClients.forEach((client, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <i class="fas fa-chevron-right expand-icon" style="color: #999; font-size: 10px; cursor: pointer;"></i>
+                    </td>
+                    <td><span class="client-id">${client.id}</span></td>
+                    <td><strong>${client.name}</strong></td>
+                    <td>
+                        <span class="status-indicator status-${client.status}">
+                            <span class="status-dot"></span>
+                            ${client.statusLabel}
+                        </span>
+                    </td>
+                    <td>${client.date}</td>
+                    <td>${client.type}</td>
+                    <td>${client.orders}</td>
+                    <td>
+                        <span class="badge ${client.approval === 'approved' ? 'badge-approved' : 'badge-review'}">
+                            ${client.approval === 'approved' ? 'Approved' : 'Review'}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="assignees">
+                            <div class="avatar-small sales" title="Sales: ${client.salesAssignee}">${client.salesAssignee}</div>
+                            ${client.fulfillmentAssignee
+                                ? `<div class="avatar-small fulfillment" title="Fulfillment: ${client.fulfillmentAssignee}">${client.fulfillmentAssignee}</div>`
+                                : ''
+                            }
+                        </div>
+                    </td>
+                    <td>
+                        <div class="stats">
+                            <div class="stat-item">
+                                <i class="fas fa-check-square"></i>
+                                <span>${client.subtasks.completed}/${client.subtasks.total}</span>
+                            </div>
+                            <div class="stat-item">
+                                <i class="far fa-comment"></i>
+                                <span>${client.comments}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="quick-actions">
+                            <button class="action-btn"><i class="fas fa-edit"></i> Edit</button>
+                        </div>
+                    </td>
+                `;
+
+                row.querySelector('.expand-icon').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleExpand(row, client, index);
+                });
+
+                row.addEventListener('click', () => {
+                    toggleExpand(row, client, index);
+                });
+
+                tableBody.appendChild(row);
+            });
+
+            updateCounts();
+        }
+
+        function toggleExpand(row, client, index) {
+            const icon = row.querySelector('.expand-icon');
+            const existingExpanded = row.nextElementSibling;
+
+            // Close previously expanded row
+            if (expandedRow && expandedRow !== row) {
+                expandedRow.classList.remove('expanded');
+                const prevIcon = expandedRow.querySelector('.expand-icon');
+                if (prevIcon) prevIcon.classList.remove('rotated');
+                const prevExpanded = expandedRow.nextElementSibling;
+                if (prevExpanded && prevExpanded.classList.contains('expanded-row')) {
+                    prevExpanded.remove();
+                }
+            }
+
+            // Toggle current row
+            if (existingExpanded && existingExpanded.classList.contains('expanded-row')) {
+                existingExpanded.remove();
+                row.classList.remove('expanded');
+                icon.classList.remove('rotated');
+                expandedRow = null;
+            } else {
+                const expandedRowEl = document.createElement('tr');
+                expandedRowEl.className = 'expanded-row';
+                expandedRowEl.innerHTML = `
+                    <td colspan="11">
+                        <div class="expanded-content">
+                            <div class="expanded-grid">
+                                <div class="detail-item">
+                                    <div class="detail-label">Email</div>
+                                    <div class="detail-value">${client.email}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Unique SKUs</div>
+                                    <div class="detail-value">${client.skus}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Battery/DG</div>
+                                    <div class="detail-value">${client.battery ? 'Yes' : 'No'}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Est. Pallets Stored</div>
+                                    <div class="detail-value">${client.pallets}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Sales Assignee</div>
+                                    <div class="detail-value">${client.salesAssignee}</div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-label">Fulfillment Assignee</div>
+                                    <div class="detail-value">${client.fulfillmentAssignee || 'Not assigned'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                row.after(expandedRowEl);
+                row.classList.add('expanded');
+                icon.classList.add('rotated');
+                expandedRow = row;
+            }
+        }
+
+        function updateCounts() {
+            document.getElementById('totalCount').textContent = sampleClients.length;
+            document.getElementById('visibleCount').textContent = sampleClients.length;
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('.table tbody tr:not(.expanded-row)');
+
+            let visibleCount = 0;
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            document.getElementById('visibleCount').textContent = visibleCount;
+        });
+
+        // Filter functionality
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                // Filter logic would go here
+            });
+        });
+
+        // Initialize
+        renderTable();
+    </script>
+</body>
+</html>

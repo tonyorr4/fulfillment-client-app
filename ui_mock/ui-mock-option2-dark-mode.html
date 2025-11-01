@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option 2: Dark Mode - Fulfillment Client App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1E1E1E;
+            color: #E0E0E0;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: #252526;
+            color: white;
+            padding: 20px 40px;
+            border-bottom: 1px solid #3E3E42;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 22px;
+            font-weight: 600;
+            color: #569CD6;
+        }
+
+        .new-request-btn {
+            background: #569CD6;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 0 0 rgba(86, 156, 214, 0);
+        }
+
+        .new-request-btn:hover {
+            background: #4A8BC2;
+            box-shadow: 0 0 20px rgba(86, 156, 214, 0.5);
+        }
+
+        /* Controls */
+        .controls {
+            background: #252526;
+            padding: 16px 40px;
+            border-bottom: 1px solid #3E3E42;
+        }
+
+        .controls-content {
+            max-width: 1800px;
+            margin: 0 auto;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 16px 10px 40px;
+            background: #3C3C3C;
+            border: 1px solid #3E3E42;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #E0E0E0;
+            transition: all 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #569CD6;
+            background: #2D2D30;
+            box-shadow: 0 0 0 2px rgba(86, 156, 214, 0.2);
+        }
+
+        .search-box input::placeholder {
+            color: #858585;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #858585;
+        }
+
+        /* Board */
+        .board {
+            padding: 24px 40px;
+            overflow-x: auto;
+        }
+
+        .board-content {
+            display: flex;
+            gap: 20px;
+            min-width: min-content;
+        }
+
+        /* Column */
+        .column {
+            background: #252526;
+            border-radius: 8px;
+            min-width: 300px;
+            max-width: 300px;
+            border: 1px solid #3E3E42;
+        }
+
+        .column-header {
+            padding: 16px;
+            border-bottom: 1px solid #3E3E42;
+        }
+
+        .column-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #CCCCCC;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .column-count {
+            background: #3C3C3C;
+            color: #CCCCCC;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .column-body {
+            padding: 12px;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Card */
+        .card {
+            background: #2D2D30;
+            border: 1px solid #3E3E42;
+            border-radius: 6px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--status-color);
+            border-radius: 6px 0 0 6px;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            background: #323233;
+            border-color: var(--status-color);
+            box-shadow: 0 0 20px rgba(var(--status-rgb), 0.3), 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .card-id {
+            font-size: 11px;
+            color: #858585;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .card-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #E0E0E0;
+            margin-bottom: 14px;
+            line-height: 1.4;
+        }
+
+        .card-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #AAAAAA;
+        }
+
+        .meta-item i {
+            width: 14px;
+            text-align: center;
+            color: var(--status-color);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-approved {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34D399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-review {
+            background: rgba(251, 191, 36, 0.2);
+            color: #FCD34D;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid #3E3E42;
+        }
+
+        .assignees {
+            display: flex;
+            gap: 4px;
+        }
+
+        .avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #569CD6;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            border: 2px solid #2D2D30;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .avatar.sales {
+            background: linear-gradient(135deg, #9333EA 0%, #7C3AED 100%);
+        }
+
+        .avatar.fulfillment {
+            background: linear-gradient(135deg, #EC4899 0%, #DB2777 100%);
+        }
+
+        .card-stats {
+            display: flex;
+            gap: 10px;
+            font-size: 11px;
+            color: #AAAAAA;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat i {
+            color: var(--status-color);
+        }
+
+        /* Status colors */
+        .status-new-request {
+            --status-color: #C084FC;
+            --status-rgb: 192, 132, 252;
+        }
+        .status-signing {
+            --status-color: #FB923C;
+            --status-rgb: 251, 146, 60;
+        }
+        .status-setup {
+            --status-color: #22D3EE;
+            --status-rgb: 34, 211, 238;
+        }
+        .status-pending {
+            --status-color: #4ADE80;
+            --status-rgb: 74, 222, 128;
+        }
+        .status-inbound {
+            --status-color: #60A5FA;
+            --status-rgb: 96, 165, 250;
+        }
+        .status-fulfilling {
+            --status-color: #10B981;
+            --status-rgb: 16, 185, 129;
+        }
+        .status-complete {
+            --status-color: #059669;
+            --status-rgb: 5, 150, 105;
+        }
+        .status-not-pursuing {
+            --status-color: #9CA3AF;
+            --status-rgb: 156, 163, 175;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1E1E1E;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3E3E42;
+            border-radius: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4E4E52;
+        }
+
+        /* Info banner */
+        .info-banner {
+            background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+            color: white;
+            padding: 10px 40px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="info-banner">
+        <i class="fas fa-moon"></i> UI Mock - Option 2: Dark Mode Design
+    </div>
+
+    <div class="header">
+        <div class="header-content">
+            <div class="header-title">
+                <i class="fas fa-box"></i>
+                <span>Fulfillment Client Tracker</span>
+            </div>
+            <button class="new-request-btn">
+                <i class="fas fa-plus"></i> New Request
+            </button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="controls-content">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search clients..." id="searchInput">
+            </div>
+            <button class="new-request-btn" style="background: transparent; border: 1px solid #569CD6;">
+                Show All
+            </button>
+        </div>
+    </div>
+
+    <div class="board">
+        <div class="board-content" id="boardContent">
+            <!-- Columns will be inserted here -->
+        </div>
+    </div>
+
+    <script>
+        const columns = [
+            { id: 'new-request', title: 'New Request', statusClass: 'status-new-request' },
+            { id: 'signing', title: 'Signing', statusClass: 'status-signing' },
+            { id: 'setup', title: 'Client Setup', statusClass: 'status-setup' },
+            { id: 'pending', title: 'Pending Inbound', statusClass: 'status-pending' },
+            { id: 'inbound', title: 'Inbound', statusClass: 'status-inbound' },
+            { id: 'fulfilling', title: 'Fulfilling', statusClass: 'status-fulfilling' },
+            { id: 'complete', title: 'Complete', statusClass: 'status-complete' },
+            { id: 'not-pursuing', title: 'Not Pursuing', statusClass: 'status-not-pursuing' }
+        ];
+
+        const sampleClients = [
+            {
+                id: 'SFC-386',
+                name: 'Soundskrit',
+                status: 'new-request',
+                date: '2024-12-15',
+                type: 'eFulfillment',
+                orders: 150,
+                approval: 'approved',
+                salesAssignee: 'JD',
+                fulfillmentAssignee: 'MK',
+                subtasks: { completed: 0, total: 4 },
+                comments: 2
+            },
+            {
+                id: 'SFC-387',
+                name: 'TechFlow Inc',
+                status: 'signing',
+                date: '2024-12-10',
+                type: 'Dropship',
+                orders: 300,
+                approval: 'approved',
+                salesAssignee: 'AB',
+                fulfillmentAssignee: 'TL',
+                subtasks: { completed: 1, total: 4 },
+                comments: 5
+            },
+            {
+                id: 'SFC-385',
+                name: 'EcoBox Solutions',
+                status: 'setup',
+                date: '2024-12-08',
+                type: 'Crowd Funding',
+                orders: 500,
+                approval: 'approved',
+                salesAssignee: 'JD',
+                fulfillmentAssignee: 'MK',
+                subtasks: { completed: 2, total: 4 },
+                comments: 8
+            },
+            {
+                id: 'SFC-384',
+                name: 'GreenLeaf Organics',
+                status: 'pending',
+                date: '2024-12-20',
+                type: 'eFulfillment',
+                orders: 200,
+                approval: 'approved',
+                salesAssignee: 'AB',
+                fulfillmentAssignee: 'TL',
+                subtasks: { completed: 3, total: 4 },
+                comments: 3
+            },
+            {
+                id: 'SFC-382',
+                name: 'UrbanStyle Co',
+                status: 'inbound',
+                date: '2024-11-28',
+                type: 'eFulfillment',
+                orders: 400,
+                approval: 'approved',
+                salesAssignee: 'JD',
+                fulfillmentAssignee: 'MK',
+                subtasks: { completed: 4, total: 4 },
+                comments: 12
+            },
+            {
+                id: 'SFC-380',
+                name: 'SmartHome Devices',
+                status: 'fulfilling',
+                date: '2024-11-15',
+                type: 'Dropship',
+                orders: 600,
+                approval: 'approved',
+                salesAssignee: 'AB',
+                fulfillmentAssignee: 'TL',
+                subtasks: { completed: 4, total: 4 },
+                comments: 18
+            },
+            {
+                id: 'SFC-375',
+                name: 'FitGear Pro',
+                status: 'complete',
+                date: '2024-10-30',
+                type: 'eFulfillment',
+                orders: 350,
+                approval: 'approved',
+                salesAssignee: 'JD',
+                fulfillmentAssignee: 'MK',
+                subtasks: { completed: 4, total: 4 },
+                comments: 22
+            },
+            {
+                id: 'SFC-388',
+                name: 'BudgetBox LLC',
+                status: 'not-pursuing',
+                date: '2024-12-01',
+                type: 'eFulfillment',
+                orders: 50,
+                approval: 'review',
+                salesAssignee: 'AB',
+                fulfillmentAssignee: null,
+                subtasks: { completed: 0, total: 4 },
+                comments: 1
+            },
+            {
+                id: 'SFC-383',
+                name: 'LuxeBeauty',
+                status: 'setup',
+                date: '2024-12-12',
+                type: 'eFulfillment',
+                orders: 250,
+                approval: 'review',
+                salesAssignee: 'JD',
+                fulfillmentAssignee: 'MK',
+                subtasks: { completed: 1, total: 4 },
+                comments: 4
+            },
+            {
+                id: 'SFC-381',
+                name: 'PetPal Supplies',
+                status: 'inbound',
+                date: '2024-12-05',
+                type: 'Crowd Funding',
+                orders: 450,
+                approval: 'approved',
+                salesAssignee: 'AB',
+                fulfillmentAssignee: 'TL',
+                subtasks: { completed: 3, total: 4 },
+                comments: 7
+            }
+        ];
+
+        function renderBoard() {
+            const boardContent = document.getElementById('boardContent');
+            boardContent.innerHTML = '';
+
+            columns.forEach(column => {
+                const clientsInColumn = sampleClients.filter(c => c.status === column.id);
+
+                const columnEl = document.createElement('div');
+                columnEl.className = 'column';
+                columnEl.innerHTML = `
+                    <div class="column-header">
+                        <div class="column-title">
+                            ${column.title}
+                            <span class="column-count">${clientsInColumn.length}</span>
+                        </div>
+                    </div>
+                    <div class="column-body">
+                        ${clientsInColumn.map(client => createCard(client, column.statusClass)).join('')}
+                    </div>
+                `;
+                boardContent.appendChild(columnEl);
+            });
+        }
+
+        function createCard(client, statusClass) {
+            return `
+                <div class="card ${statusClass}">
+                    <div class="card-header">
+                        <span class="card-id">${client.id}</span>
+                        ${client.approval === 'approved'
+                            ? '<span class="badge badge-approved"><i class="fas fa-check-circle"></i> Approved</span>'
+                            : '<span class="badge badge-review"><i class="fas fa-exclamation-circle"></i> Review</span>'
+                        }
+                    </div>
+                    <div class="card-name">${client.name}</div>
+                    <div class="card-meta">
+                        <div class="meta-item">
+                            <i class="far fa-calendar"></i>
+                            <span>${client.date}</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-tag"></i>
+                            <span>${client.type}</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-box"></i>
+                            <span>${client.orders} orders/mo</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="assignees">
+                            <div class="avatar sales" title="Sales: ${client.salesAssignee}">${client.salesAssignee}</div>
+                            ${client.fulfillmentAssignee
+                                ? `<div class="avatar fulfillment" title="Fulfillment: ${client.fulfillmentAssignee}">${client.fulfillmentAssignee}</div>`
+                                : ''
+                            }
+                        </div>
+                        <div class="card-stats">
+                            <div class="stat">
+                                <i class="fas fa-check-square"></i>
+                                <span>${client.subtasks.completed}/${client.subtasks.total}</span>
+                            </div>
+                            <div class="stat">
+                                <i class="far fa-comment"></i>
+                                <span>${client.comments}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.card');
+
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                card.style.display = text.includes(searchTerm) ? 'block' : 'none';
+            });
+        });
+
+        // Initialize
+        renderBoard();
+    </script>
+</body>
+</html>

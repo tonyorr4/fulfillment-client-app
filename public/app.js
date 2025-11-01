@@ -49,6 +49,11 @@ function displayUser(user) {
         userAvatar.style.backgroundSize = 'cover';
         userAvatar.textContent = '';
     }
+
+    // Show Automations tab for admin users
+    if (user.is_admin || user.role === 'Admin') {
+        document.getElementById('automations-tab').style.display = 'block';
+    }
 }
 
 // Logout
@@ -1500,6 +1505,222 @@ async function saveClientDetails() {
         console.error('Error saving client details:', error);
         showToast('Failed to save changes', 'error');
     }
+}
+
+// ==================== AUTOMATIONS ====================
+
+let allAutomations = [];
+
+// Switch between tabs
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+    if (tabName === 'board') {
+        document.getElementById('board-tab').classList.add('active');
+    } else if (tabName === 'automations') {
+        document.getElementById('automations-tab-content').classList.add('active');
+        loadAutomations(); // Load automations when tab is opened
+    }
+}
+
+// Load all automations
+async function loadAutomations() {
+    try {
+        const response = await fetch('/api/automations', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch automations');
+        }
+
+        allAutomations = await response.json();
+        renderAutomations();
+    } catch (error) {
+        console.error('Error loading automations:', error);
+        document.getElementById('automations-list').innerHTML = `
+            <div class="automation-empty">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Failed to load automations</p>
+            </div>
+        `;
+    }
+}
+
+// Render automations list
+function renderAutomations() {
+    const container = document.getElementById('automations-list');
+
+    if (allAutomations.length === 0) {
+        container.innerHTML = `
+            <div class="automation-empty">
+                <i class="fas fa-robot"></i>
+                <p>No automations yet</p>
+                <p style="font-size: 14px; margin-top: 8px;">Click "New Automation" to create your first rule</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = allAutomations.map(auto => `
+        <div class="automation-card">
+            <div class="automation-card-header">
+                <div class="automation-card-title">
+                    <h3>${escapeHtml(auto.name)}</h3>
+                    <span class="automation-enabled-badge ${auto.enabled ? 'enabled' : 'disabled'}">
+                        ${auto.enabled ? '✓ Enabled' : '⏸ Disabled'}
+                    </span>
+                </div>
+                <div class="automation-card-actions">
+                    <label class="toggle-switch">
+                        <input type="checkbox" ${auto.enabled ? 'checked' : ''}
+                               onchange="toggleAutomation(${auto.id}, this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <button class="btn-icon delete" onclick="deleteAutomation(${auto.id})" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="automation-card-body">
+                ${auto.description ? `<p>${escapeHtml(auto.description)}</p>` : ''}
+                <p><strong>Trigger:</strong> ${formatTriggerEvent(auto.trigger_event)}</p>
+                <p><strong>Conditions:</strong> ${formatConditions(auto.conditions)}</p>
+                <p><strong>Actions:</strong> ${formatActions(auto.actions)}</p>
+            </div>
+            <div class="automation-meta">
+                <div class="automation-meta-item">
+                    <i class="fas fa-sort-numeric-down"></i>
+                    Order: ${auto.execution_order}
+                </div>
+                <div class="automation-meta-item">
+                    <i class="fas fa-user"></i>
+                    ${auto.created_by_name || 'System'}
+                </div>
+                <div class="automation-meta-item">
+                    <i class="fas fa-calendar"></i>
+                    ${formatDate(auto.created_at)}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Format trigger event for display
+function formatTriggerEvent(trigger) {
+    const triggerNames = {
+        'client_created': 'Client Created',
+        'status_changed': 'Status Changed',
+        'approval_changed': 'Approval Changed',
+        'subtask_completed': 'Subtask Completed',
+        'client_updated': 'Client Updated'
+    };
+    return triggerNames[trigger] || trigger;
+}
+
+// Format conditions for display
+function formatConditions(conditions) {
+    if (!conditions || (conditions.type === 'group' && conditions.conditions.length === 0)) {
+        return '<em>Always (no conditions)</em>';
+    }
+
+    if (conditions.type === 'condition') {
+        return `${conditions.field} ${conditions.operator} ${JSON.stringify(conditions.value)}`;
+    }
+
+    if (conditions.type === 'group') {
+        const parts = conditions.conditions.map(c => {
+            if (c.type === 'condition') {
+                return `${c.field} ${c.operator} ${JSON.stringify(c.value)}`;
+            }
+            return '(nested group)';
+        });
+        return parts.join(` ${conditions.operator} `);
+    }
+
+    return '<em>Unknown</em>';
+}
+
+// Format actions for display
+function formatActions(actions) {
+    if (!actions || actions.length === 0) {
+        return '<em>None</em>';
+    }
+
+    return actions.map(action => {
+        if (action.type === 'set_field') {
+            return `Set ${action.field} = ${JSON.stringify(action.value)}`;
+        } else if (action.type === 'create_subtask') {
+            const assignee = action.assignee_field ? `{${action.assignee_field}}` : action.assignee_static;
+            return `Create subtask "${action.text}" (assign to: ${assignee})`;
+        } else if (action.type === 'set_multiple_fields') {
+            return `Set ${Object.keys(action.fields).length} fields`;
+        }
+        return action.type;
+    }).join(', ');
+}
+
+// Toggle automation enabled/disabled
+async function toggleAutomation(id, enabled) {
+    try {
+        const response = await fetch(`/api/automations/${id}/toggle`, {
+            method: 'PATCH',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to toggle automation');
+        }
+
+        showToast(`Automation ${enabled ? 'enabled' : 'disabled'}`, 'success');
+        await loadAutomations();
+    } catch (error) {
+        console.error('Error toggling automation:', error);
+        showToast('Failed to toggle automation', 'error');
+        await loadAutomations(); // Reload to reset UI
+    }
+}
+
+// Delete automation
+async function deleteAutomation(id) {
+    if (!confirm('Are you sure you want to delete this automation? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/automations/${id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete automation');
+        }
+
+        showToast('Automation deleted', 'success');
+        await loadAutomations();
+    } catch (error) {
+        console.error('Error deleting automation:', error);
+        showToast('Failed to delete automation', 'error');
+    }
+}
+
+// Open automation modal (placeholder for now)
+function openAutomationModal() {
+    alert('Automation builder coming soon! For now, automations are managed via the database.\n\nDefault automations have been created:\n- Auto-assign Ian to fulfillment ops\n- Auto-approve simple clients\n- Create client setup subtasks');
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // ==================== INITIALIZATION ====================

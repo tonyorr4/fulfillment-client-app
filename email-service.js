@@ -9,17 +9,25 @@ let transporter = null;
  */
 function initializeTransporter() {
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-        console.warn('Gmail credentials not configured. Email service disabled.');
+        console.error('❌ Gmail credentials not configured!');
+        console.error('   GMAIL_USER:', process.env.GMAIL_USER ? 'SET' : 'MISSING');
+        console.error('   GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? 'SET' : 'MISSING');
         return null;
     }
 
-    return nodemailer.createTransport({
+    console.log('✅ Initializing Gmail transporter...');
+    console.log('   Email account:', process.env.GMAIL_USER);
+
+    const transport = nodemailer.createTransport({
         service: 'gmail',
         auth: {
             user: process.env.GMAIL_USER,
             pass: process.env.GMAIL_APP_PASSWORD
         }
     });
+
+    console.log('✅ Gmail transporter initialized successfully');
+    return transport;
 }
 
 /**
