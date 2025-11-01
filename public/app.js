@@ -98,8 +98,26 @@ function displayUser(user) {
     }
 
     // Show Automations tab for admin users
-    if (user.is_admin || user.role === 'Admin') {
-        document.getElementById('automations-tab').style.display = 'block';
+    console.log('🔐 User role check:', {
+        name: user.name,
+        role: user.role,
+        is_admin: user.is_admin,
+        will_show_automations: user.is_admin || user.role === 'Admin'
+    });
+
+    // DEPLOYMENT NOTE: Set FORCE_SHOW_AUTOMATIONS = true to always show automations tab for testing
+    const FORCE_SHOW_AUTOMATIONS = false; // Change to true for deployment testing
+
+    if (user.is_admin || user.role === 'Admin' || FORCE_SHOW_AUTOMATIONS) {
+        const automationsTab = document.getElementById('automations-tab');
+        if (automationsTab) {
+            automationsTab.style.display = 'block';
+            console.log('✅ Automations tab shown (admin or force enabled)');
+        } else {
+            console.error('❌ Automations tab element not found in DOM');
+        }
+    } else {
+        console.log('ℹ️ Automations tab hidden (user is not admin)');
     }
 }
 
@@ -1805,8 +1823,19 @@ function openAutomationModal() {
 
 // ==================== INITIALIZATION ====================
 
+// Make functions globally accessible for onclick handlers
+window.toggleTheme = toggleTheme;
+window.switchTab = switchTab;
+window.filterByStatus = filterByStatus;
+window.filterCards = filterCards;
+window.openNewRequestModal = openNewRequestModal;
+window.closeModal = closeModal;
+window.openClientDetail = openClientDetail;
+window.logout = logout;
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Sincro Fulfillment Client App loaded');
+    console.log('✅ toggleTheme function available:', typeof window.toggleTheme);
 
     // Initialize theme first (before loading data)
     initializeTheme();

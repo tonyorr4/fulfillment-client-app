@@ -369,26 +369,32 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
             automation_summary: automationSummary
         });
 
-        // Fetch sales team user for email notification
-        const salesUserResult = await pool.query(
-            'SELECT id, name, email FROM users WHERE name = $1 LIMIT 1',
-            [salesTeam]
-        );
-        const salesTeamUser = salesUserResult.rows.length > 0 ? salesUserResult.rows[0] : null;
-
-        // Send email notification to sales team and Tony (non-blocking)
-        sendNewRequestNotification({
-            ...newClient,
-            sales_team: salesTeam,
-            fulfillment_ops: 'Ian'
-        }, salesTeamUser).catch(err => {
-            console.error('❌ Email notification failed (non-blocking):', err.message);
-        });
-
+        // Send response immediately (before email notification)
         res.status(201).json({
             success: true,
             client: newClient,
             autoApproved: newClient.auto_approved
+        });
+
+        // Send email notification asynchronously (after response sent)
+        setImmediate(async () => {
+            try {
+                // Fetch sales team user for email notification
+                const salesUserResult = await pool.query(
+                    'SELECT id, name, email FROM users WHERE name = $1 LIMIT 1',
+                    [salesTeam]
+                );
+                const salesTeamUser = salesUserResult.rows.length > 0 ? salesUserResult.rows[0] : null;
+
+                // Send email notification to sales team and Tony
+                await sendNewRequestNotification({
+                    ...newClient,
+                    sales_team: salesTeam,
+                    fulfillment_ops: 'Ian'
+                }, salesTeamUser);
+            } catch (err) {
+                console.error('❌ Email notification failed (post-response):', err.message);
+            }
         });
     } catch (error) {
         console.error('Error creating client:', error);
