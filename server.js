@@ -1482,8 +1482,10 @@ async function startServer() {
         // Initialize database
         await initializeDatabase();
 
-        // Verify Gmail connection
-        await verifyConnection();
+        // Verify Gmail connection (non-blocking - don't wait for it)
+        verifyConnection().catch(err => {
+            console.warn('⚠️ Gmail verification failed, but server will continue:', err.message);
+        });
 
         // Start server
         app.listen(PORT, () => {
