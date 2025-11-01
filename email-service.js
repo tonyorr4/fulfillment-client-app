@@ -17,17 +17,48 @@ function initializeTransporter() {
 
     console.log('✅ Initializing Gmail transporter...');
     console.log('   Email account:', process.env.GMAIL_USER);
+    console.log('   App password length:', process.env.GMAIL_APP_PASSWORD.replace(/\s/g, '').length, 'characters (should be 16)');
 
     const transport = nodemailer.createTransport({
         service: 'gmail',
         auth: {
             user: process.env.GMAIL_USER,
-            pass: process.env.GMAIL_APP_PASSWORD
+            pass: process.env.GMAIL_APP_PASSWORD.replace(/\s/g, '') // Remove spaces from app password
         }
     });
 
     console.log('✅ Gmail transporter initialized successfully');
     return transport;
+}
+
+/**
+ * Verify Gmail connection
+ */
+async function verifyConnection() {
+    if (!transporter) {
+        transporter = initializeTransporter();
+    }
+
+    if (!transporter) {
+        console.warn('⚠️ Cannot verify Gmail connection - transporter not initialized');
+        return false;
+    }
+
+    try {
+        console.log('🔍 Verifying Gmail SMTP connection...');
+        await transporter.verify();
+        console.log('✅ Gmail SMTP connection verified successfully!');
+        return true;
+    } catch (error) {
+        console.error('❌ Gmail SMTP connection verification failed!');
+        console.error('   Error:', error.message);
+        console.error('   This usually means:');
+        console.error('   1. Invalid app password');
+        console.error('   2. 2FA not enabled on Google account');
+        console.error('   3. App password expired or revoked');
+        console.error('   4. Account security settings blocking access');
+        return false;
+    }
 }
 
 /**
@@ -67,8 +98,13 @@ async function sendEmail(emailData) {
         console.log('   From:', process.env.GMAIL_USER);
         console.log('   Subject:', emailData.subject);
 
-        // Send email
-        const result = await transporter.sendMail(mailOptions);
+        // Send email with timeout
+        const result = await Promise.race([
+            transporter.sendMail(mailOptions),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Email send timeout after 30s')), 30000)
+            )
+        ]);
 
         console.log('✉️ Email sent successfully to:', emailData.recipientEmail);
         console.log('✉️ Message ID:', result.messageId);
@@ -79,7 +115,11 @@ async function sendEmail(emailData) {
         };
 
     } catch (error) {
-        console.error('Error sending email:', error);
+        console.error('❌ Email sending failed!');
+        console.error('   Error type:', error.name);
+        console.error('   Error message:', error.message);
+        console.error('   Error code:', error.code);
+        console.error('   Full error:', error);
         return {
             success: false,
             error: error.message,
@@ -378,6 +418,7 @@ async function sendApprovalDecisionNotification(clientData, approval, decidedBy)
 
 module.exports = {
     sendEmail,
+    verifyConnection,
     sendMentionNotification,
     sendNewRequestNotification,
     sendClientSetupNotification,

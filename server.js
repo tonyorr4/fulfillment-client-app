@@ -23,6 +23,7 @@ const {
 } = require('./database');
 const { triggerAutomations } = require('./automation-engine');
 const {
+    verifyConnection,
     sendMentionNotification,
     sendNewRequestNotification,
     sendClientSetupNotification,
@@ -1474,6 +1475,9 @@ async function startServer() {
     try {
         // Initialize database
         await initializeDatabase();
+
+        // Verify Gmail connection
+        await verifyConnection();
 
         // Start server
         app.listen(PORT, () => {
