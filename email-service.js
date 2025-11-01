@@ -20,10 +20,19 @@ function initializeTransporter() {
     console.log('   App password length:', process.env.GMAIL_APP_PASSWORD.replace(/\s/g, '').length, 'characters (should be 16)');
 
     const transport = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false, // Use STARTTLS
         auth: {
             user: process.env.GMAIL_USER,
             pass: process.env.GMAIL_APP_PASSWORD.replace(/\s/g, '') // Remove spaces from app password
+        },
+        connectionTimeout: 10000, // 10 second connection timeout
+        greetingTimeout: 10000, // 10 second greeting timeout
+        socketTimeout: 45000, // 45 second socket timeout
+        tls: {
+            rejectUnauthorized: false, // More permissive for Railway
+            minVersion: 'TLSv1.2'
         }
     });
 
