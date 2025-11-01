@@ -626,10 +626,11 @@ app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, r
 // Delete client
 app.delete('/api/clients/:id', ensureAuthenticated, checkAutoAdmin, async (req, res) => {
     try {
-        await pool.query('DELETE FROM clients WHERE id = $1', [req.params.id]);
-
-        // Log activity
+        // Log activity BEFORE deleting (foreign key constraint requires client to exist)
         await logActivity(req.params.id, req.user.id, 'client_deleted', {});
+
+        // Now delete the client
+        await pool.query('DELETE FROM clients WHERE id = $1', [req.params.id]);
 
         res.json({ success: true });
     } catch (error) {
