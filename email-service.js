@@ -21,8 +21,8 @@ function initializeTransporter() {
 
     const transport = nodemailer.createTransport({
         host: 'smtp.gmail.com',
-        port: 587,
-        secure: false, // Use STARTTLS
+        port: 465, // Use SSL port instead of STARTTLS
+        secure: true, // Use SSL
         auth: {
             user: process.env.GMAIL_USER,
             pass: process.env.GMAIL_APP_PASSWORD.replace(/\s/g, '') // Remove spaces from app password
@@ -33,7 +33,9 @@ function initializeTransporter() {
         tls: {
             rejectUnauthorized: false, // More permissive for Railway
             minVersion: 'TLSv1.2'
-        }
+        },
+        pool: true, // Use connection pooling
+        maxConnections: 1 // Limit concurrent connections
     });
 
     console.log('✅ Gmail transporter initialized successfully');
