@@ -1987,6 +1987,9 @@ function renderAutomations() {
                                onchange="toggleAutomation(${auto.id}, this.checked)">
                         <span class="toggle-slider"></span>
                     </label>
+                    <button class="btn-icon" onclick="editAutomation(${auto.id})" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
                     <button class="btn-icon delete" onclick="deleteAutomation(${auto.id})" title="Delete">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -2120,6 +2123,7 @@ async function deleteAutomation(id) {
 let wizardCurrentStep = 1;
 let conditionIdCounter = 0;
 let actionIdCounter = 0;
+let editingAutomationId = null; // null = create mode, number = edit mode
 
 // Available client fields for conditions
 const clientFields = [
@@ -2160,11 +2164,12 @@ const writableFields = [
 ];
 
 // Open automation modal
-function openAutomationModal() {
+function openAutomationModal(automationId = null) {
     // Reset wizard state
     wizardCurrentStep = 1;
     conditionIdCounter = 0;
     actionIdCounter = 0;
+    editingAutomationId = automationId; // Set edit mode if ID provided
 
     // Reset form
     document.getElementById('automation-name').value = '';
@@ -2182,7 +2187,7 @@ function openAutomationModal() {
     document.getElementById('action-list').innerHTML = '';
 
     // Set modal title
-    document.getElementById('automationModalTitle').textContent = 'Create New Automation';
+    document.getElementById('automationModalTitle').textContent = automationId ? 'Edit Automation' : 'Create New Automation';
 
     // Show modal
     document.getElementById('automationModal').classList.add('active');
@@ -2191,9 +2196,106 @@ function openAutomationModal() {
     updateWizardStep(1);
 }
 
+// Edit existing automation
+async function editAutomation(automationId) {
+    try {
+        // Fetch automation data
+        const response = await fetch(`/api/automations/${automationId}`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to load automation');
+        }
+
+        const automation = await response.json();
+
+        // Open modal in edit mode
+        openAutomationModal(automationId);
+
+        // Populate Step 1: Basic Info
+        document.getElementById('automation-name').value = automation.name || '';
+        document.getElementById('automation-description').value = automation.description || '';
+        document.getElementById('automation-trigger').value = automation.trigger_event || '';
+        document.getElementById('automation-order').value = automation.execution_order || 0;
+        document.getElementById('automation-enabled').checked = automation.enabled !== false;
+
+        // Populate Step 2: Conditions
+        const conditions = automation.conditions;
+        if (conditions && conditions.type === 'group' && conditions.conditions.length > 0) {
+            // Set to conditional mode
+            document.getElementById('condition-mode').value = 'conditional';
+            document.getElementById('condition-builder').style.display = 'block';
+
+            // Set group operator
+            const rootGroup = document.getElementById('root-condition-group');
+            rootGroup.dataset.operator = conditions.operator || 'AND';
+            rootGroup.querySelector('.condition-operator').value = conditions.operator || 'AND';
+
+            // Add each condition
+            conditions.conditions.forEach(cond => {
+                addCondition('root-condition-group');
+                const conditionItems = document.querySelectorAll('#root-condition-group .condition-item');
+                const lastCondition = conditionItems[conditionItems.length - 1];
+
+                lastCondition.querySelector('.field-select').value = cond.field || '';
+                lastCondition.querySelector('.operator-select').value = cond.operator || 'equals';
+
+                // Handle array values
+                let displayValue = cond.value;
+                if (Array.isArray(cond.value)) {
+                    displayValue = cond.value.join(', ');
+                }
+                lastCondition.querySelector('.value-input').value = displayValue || '';
+            });
+
+            updateConditionPreview();
+        }
+
+        // Populate Step 3: Actions
+        if (automation.actions && automation.actions.length > 0) {
+            automation.actions.forEach(action => {
+                if (action.type === 'set_field') {
+                    addAction('set_field');
+                    const actionItems = document.querySelectorAll('.action-item');
+                    const lastAction = actionItems[actionItems.length - 1];
+
+                    lastAction.querySelector('.action-field').value = action.field || '';
+                    lastAction.querySelector('.action-value').value = action.value || '';
+
+                } else if (action.type === 'create_subtask') {
+                    addAction('create_subtask');
+                    const actionItems = document.querySelectorAll('.action-item');
+                    const lastAction = actionItems[actionItems.length - 1];
+
+                    lastAction.querySelector('.subtask-text').value = action.text || '';
+                    lastAction.querySelector('.mark-auto-created').checked = action.mark_auto_created !== false;
+
+                    if (action.assignee_field) {
+                        lastAction.querySelector('.assignee-type').value = 'field';
+                        lastAction.querySelector('.assignee-field').value = action.assignee_field;
+                        lastAction.querySelector('.assignee-field-group').style.display = 'block';
+                        lastAction.querySelector('.assignee-static-group').style.display = 'none';
+                    } else if (action.assignee_static) {
+                        lastAction.querySelector('.assignee-type').value = 'static';
+                        lastAction.querySelector('.assignee-static').value = action.assignee_static;
+                        lastAction.querySelector('.assignee-field-group').style.display = 'none';
+                        lastAction.querySelector('.assignee-static-group').style.display = 'block';
+                    }
+                }
+            });
+        }
+
+    } catch (error) {
+        console.error('Error loading automation for edit:', error);
+        showToast('Failed to load automation', 'error');
+    }
+}
+
 // Close automation modal
 function closeAutomationModal() {
     document.getElementById('automationModal').classList.remove('active');
+    editingAutomationId = null; // Clear edit mode
 }
 
 // Update wizard step
@@ -2563,9 +2665,13 @@ async function saveAutomation() {
             return;
         }
 
-        // Send to API
-        const response = await fetch('/api/automations', {
-            method: 'POST',
+        // Send to API (POST for create, PATCH for update)
+        const isEditing = editingAutomationId !== null;
+        const url = isEditing ? `/api/automations/${editingAutomationId}` : '/api/automations';
+        const method = isEditing ? 'PATCH' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
@@ -2584,7 +2690,7 @@ async function saveAutomation() {
             throw new Error(error.error || 'Failed to save automation');
         }
 
-        showToast('Automation created successfully!', 'success');
+        showToast(isEditing ? 'Automation updated successfully!' : 'Automation created successfully!', 'success');
         closeAutomationModal();
         await loadAutomations();
 
@@ -2608,6 +2714,7 @@ window.logout = logout;
 window.toggleAutomation = toggleAutomation;
 window.deleteAutomation = deleteAutomation;
 window.openAutomationModal = openAutomationModal;
+window.editAutomation = editAutomation;
 window.closeAutomationModal = closeAutomationModal;
 window.nextWizardStep = nextWizardStep;
 window.previousWizardStep = previousWizardStep;
