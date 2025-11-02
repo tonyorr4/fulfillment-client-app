@@ -1,7 +1,32 @@
 const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 require('dotenv').config();
 
-// Create reusable transporter
+// Gmail API OAuth2 client (prioritized over SMTP)
+let gmailApiConfigured = false;
+let oauth2Client = null;
+
+// Initialize Gmail API if OAuth credentials are available
+if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
+    try {
+        oauth2Client = new google.auth.OAuth2(
+            process.env.GMAIL_CLIENT_ID,
+            process.env.GMAIL_CLIENT_SECRET,
+            'http://localhost:3000/oauth2callback'
+        );
+
+        oauth2Client.setCredentials({
+            refresh_token: process.env.GMAIL_REFRESH_TOKEN
+        });
+
+        gmailApiConfigured = true;
+        console.log('✅ Gmail API (OAuth2) initialized for email delivery');
+    } catch (error) {
+        console.error('❌ Failed to initialize Gmail API:', error.message);
+    }
+}
+
+// Create reusable SMTP transporter (fallback)
 let transporter = null;
 
 /**
@@ -73,10 +98,79 @@ async function verifyConnection() {
 }
 
 /**
- * Send email notification using Gmail/Nodemailer
+ * Send email using Gmail API (OAuth2) - bypasses SMTP port blocks
+ */
+async function sendViaGmailAPI(emailData) {
+    try {
+        const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+        // Create email in RFC 2822 format
+        const from = `${emailData.senderName || 'Sincro Fulfillment'} <${process.env.GMAIL_USER}>`;
+        const to = `${emailData.recipientName} <${emailData.recipientEmail}>`;
+
+        const email = [
+            `From: ${from}`,
+            `To: ${to}`,
+            `Subject: ${emailData.subject}`,
+            'MIME-Version: 1.0',
+            'Content-Type: text/html; charset=utf-8',
+            '',
+            emailData.htmlContent
+        ].join('\r\n');
+
+        // Encode email in base64url
+        const encodedEmail = Buffer.from(email)
+            .toString('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+
+        console.log('📧 Attempting to send email via Gmail API:');
+        console.log('   To:', emailData.recipientEmail);
+        console.log('   From:', process.env.GMAIL_USER);
+        console.log('   Subject:', emailData.subject);
+
+        // Send email using Gmail API
+        const result = await gmail.users.messages.send({
+            userId: 'me',
+            requestBody: {
+                raw: encodedEmail
+            }
+        });
+
+        console.log('✉️ Email sent successfully via Gmail API');
+        console.log('✉️ Message ID:', result.data.id);
+
+        return {
+            success: true,
+            messageId: result.data.id,
+            message: 'Email sent successfully via Gmail API'
+        };
+
+    } catch (error) {
+        console.error('❌ Gmail API email failed:', error.message);
+        return {
+            success: false,
+            error: error.message,
+            message: 'Failed to send email via Gmail API'
+        };
+    }
+}
+
+/**
+ * Send email notification using Gmail API (preferred) or SMTP (fallback)
  * @param {Object} emailData - Email details
  */
 async function sendEmail(emailData) {
+    // Try Gmail API first if configured
+    if (gmailApiConfigured && oauth2Client) {
+        console.log('🌐 Using Gmail API (OAuth2) - HTTPS delivery');
+        return await sendViaGmailAPI(emailData);
+    }
+
+    // Fallback to SMTP if Gmail API not configured
+    console.log('📮 Using Gmail SMTP (fallback)');
+
     // Initialize transporter if not already done
     if (!transporter) {
         transporter = initializeTransporter();
