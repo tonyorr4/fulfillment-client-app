@@ -18,7 +18,7 @@ async function setupGmailOAuth() {
         console.log('   GMAIL_CLIENT_ID=your-client-id.apps.googleusercontent.com');
         console.log('   GMAIL_CLIENT_SECRET=GOCSPX-your-client-secret');
         console.log('   GMAIL_REDIRECT_URI=http://localhost:3000/oauth2callback');
-        console.log('   GMAIL_USER=sincro-reply@gosincro.com\n');
+        console.log('   GMAIL_USER=tony.orr@easyship.com\n');
         console.log('See GMAIL_API_SETUP.md for detailed instructions.\n');
         process.exit(1);
     }
@@ -104,7 +104,7 @@ async function setupGmailOAuth() {
             console.log('\n2. Also add these if not already present:');
             console.log(`   GMAIL_CLIENT_ID=${process.env.GMAIL_CLIENT_ID}`);
             console.log(`   GMAIL_CLIENT_SECRET=${process.env.GMAIL_CLIENT_SECRET}`);
-            console.log(`   GMAIL_USER=${process.env.GMAIL_USER}`);
+            console.log('   GMAIL_USER=tony.orr@easyship.com');
             console.log('\n3. Railway will auto-redeploy with the new variables');
             console.log('\n4. Test by creating a client in your app\n');
 

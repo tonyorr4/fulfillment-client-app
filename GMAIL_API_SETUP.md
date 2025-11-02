@@ -27,7 +27,7 @@ This guide will help you set up Gmail API with OAuth2 to send emails via HTTPS (
 
 **Fill in the form:**
 - **App name:** `Sincro Fulfillment`
-- **User support email:** Your email (sincro-reply@gosincro.com)
+- **User support email:** Your email (tony.orr@easyship.com)
 - **Developer contact email:** Your email
 - Click **"Save and Continue"**
 
@@ -40,7 +40,7 @@ This guide will help you set up Gmail API with OAuth2 to send emails via HTTPS (
 
 **Test users page:**
 - Click **"Add Users"**
-- Add email: `sincro-reply@gosincro.com`
+- Add email: `tony.orr@easyship.com`
 - Click **"Add"**
 - Click **"Save and Continue"**
 
@@ -74,7 +74,7 @@ Open your `.env` file and add these (use the values from Google Cloud Console):
 GMAIL_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GMAIL_CLIENT_SECRET=GOCSPX-your-client-secret
 GMAIL_REDIRECT_URI=http://localhost:3000/oauth2callback
-GMAIL_USER=sincro-reply@gosincro.com
+GMAIL_USER=tony.orr@easyship.com
 ```
 
 ### 2. Run the OAuth Setup Script
@@ -106,7 +106,7 @@ Once you have the refresh token, add these to Railway environment variables:
 GMAIL_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GMAIL_CLIENT_SECRET=GOCSPX-your-client-secret
 GMAIL_REFRESH_TOKEN=1//your-long-refresh-token
-GMAIL_USER=sincro-reply@gosincro.com
+GMAIL_USER=tony.orr@easyship.com
 ```
 
 3. Railway will auto-redeploy with the new variables
