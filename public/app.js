@@ -923,8 +923,8 @@ function highlightMentions(text) {
     const escaped = escapeHtml(text);
 
     // Then wrap @mentions in span tags
-    // Match @Username (letters, spaces, and common name characters)
-    const mentionRegex = /@([A-Za-z][A-Za-z\s]*?)(?=\s|$|[^\w])/g;
+    // Match @FirstName only (no spaces - just first names)
+    const mentionRegex = /@([A-Za-z]+)(?=\s|$|[^\w])/g;
 
     return escaped.replace(mentionRegex, '<span class="mention">$&</span>');
 }
@@ -1106,12 +1106,15 @@ function selectMentionUser(user) {
     const beforeMention = text.substring(0, mentionState.startPos);
     const afterCursor = text.substring(textarea.selectionStart);
 
-    // Insert mention with @ symbol and add space after
-    const newText = beforeMention + '@' + user.name + ' ' + afterCursor;
+    // Extract first name only
+    const firstName = user.name.split(' ')[0];
+
+    // Insert mention with @ symbol and add space after (first name only)
+    const newText = beforeMention + '@' + firstName + ' ' + afterCursor;
     textarea.value = newText;
 
     // Set cursor position after the mention
-    const newCursorPos = beforeMention.length + user.name.length + 2; // +2 for @ and space
+    const newCursorPos = beforeMention.length + firstName.length + 2; // +2 for @ and space
     textarea.selectionStart = newCursorPos;
     textarea.selectionEnd = newCursorPos;
 
@@ -1141,15 +1144,19 @@ function hideMentionDropdown() {
 function parseMentions(text) {
     const mentionedUserIds = [];
 
-    // Regex to match @Username patterns
-    const mentionRegex = /@([A-Za-z\s]+)(?=\s|$|[^\w])/g;
+    // Regex to match @FirstName patterns (no spaces - first names only)
+    const mentionRegex = /@([A-Za-z]+)(?=\s|$|[^\w])/g;
     let match;
 
     while ((match = mentionRegex.exec(text)) !== null) {
-        const mentionedName = match[1].trim();
+        const mentionedFirstName = match[1].trim();
 
-        // Find user by name
-        const user = allUsers.find(u => u.name === mentionedName);
+        // Find user by first name
+        const user = allUsers.find(u => {
+            const firstName = u.name.split(' ')[0];
+            return firstName.toLowerCase() === mentionedFirstName.toLowerCase();
+        });
+
         if (user && !mentionedUserIds.includes(user.id)) {
             mentionedUserIds.push(user.id);
         }
