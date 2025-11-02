@@ -1,12 +1,11 @@
-const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
 require('dotenv').config();
 
-// Gmail API OAuth2 client (prioritized over SMTP)
+// Gmail API OAuth2 client
 let gmailApiConfigured = false;
 let oauth2Client = null;
 
-// Initialize Gmail API if OAuth credentials are available
+// Initialize Gmail API with OAuth credentials
 if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
     try {
         oauth2Client = new google.auth.OAuth2(
@@ -24,98 +23,46 @@ if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.en
     } catch (error) {
         console.error('❌ Failed to initialize Gmail API:', error.message);
     }
-}
-
-// Create reusable SMTP transporter (fallback)
-let transporter = null;
-
-/**
- * Initialize Gmail SMTP transporter
- */
-function initializeTransporter() {
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-        console.error('❌ Gmail credentials not configured!');
-        console.error('   GMAIL_USER:', process.env.GMAIL_USER ? 'SET' : 'MISSING');
-        console.error('   GMAIL_APP_PASSWORD:', process.env.GMAIL_APP_PASSWORD ? 'SET' : 'MISSING');
-        return null;
-    }
-
-    console.log('✅ Initializing Gmail transporter...');
-    console.log('   Email account:', process.env.GMAIL_USER);
-    console.log('   App password length:', process.env.GMAIL_APP_PASSWORD.replace(/\s/g, '').length, 'characters (should be 16)');
-
-    const transport = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465, // Use SSL port instead of STARTTLS
-        secure: true, // Use SSL
-        auth: {
-            user: process.env.GMAIL_USER,
-            pass: process.env.GMAIL_APP_PASSWORD.replace(/\s/g, '') // Remove spaces from app password
-        },
-        connectionTimeout: 10000, // 10 second connection timeout
-        greetingTimeout: 10000, // 10 second greeting timeout
-        socketTimeout: 45000, // 45 second socket timeout
-        tls: {
-            rejectUnauthorized: false, // More permissive for Railway
-            minVersion: 'TLSv1.2'
-        },
-        pool: true, // Use connection pooling
-        maxConnections: 1 // Limit concurrent connections
-    });
-
-    console.log('✅ Gmail transporter initialized successfully');
-    return transport;
+} else {
+    console.error('❌ Gmail API not configured! Missing OAuth2 credentials.');
+    console.error('   Required: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN');
 }
 
 /**
- * Verify Gmail connection (API or SMTP)
+ * Verify Gmail API connection
  */
 async function verifyConnection() {
-    // If Gmail API is configured, verify that instead of SMTP
-    if (gmailApiConfigured && oauth2Client) {
-        console.log('🔍 Verifying Gmail API connection...');
-        try {
-            // Test Gmail API by checking if we can access the Gmail API
-            const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-            await gmail.users.getProfile({ userId: 'me' });
-            console.log('✅ Gmail API connection verified successfully!');
-            console.log('   Email delivery will use Gmail API (HTTPS) - Railway compatible');
-            return true;
-        } catch (error) {
-            console.error('❌ Gmail API connection verification failed!');
-            console.error('   Error:', error.message);
-            console.error('   Check that your OAuth credentials are correct in Railway');
-            return false;
-        }
-    }
-
-    // Fallback to SMTP verification (for local development)
-    if (!transporter) {
-        transporter = initializeTransporter();
-    }
-
-    if (!transporter) {
-        console.warn('⚠️ No email configuration found (Gmail API or SMTP)');
+    if (!gmailApiConfigured || !oauth2Client) {
+        console.error('⚠️ Gmail API not configured - cannot verify connection');
         return false;
     }
 
+    console.log('🔍 Verifying Gmail API connection...');
     try {
-        console.log('🔍 Verifying Gmail SMTP connection...');
-        await transporter.verify();
-        console.log('✅ Gmail SMTP connection verified successfully!');
+        const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+        await gmail.users.getProfile({ userId: 'me' });
+        console.log('✅ Gmail API connection verified successfully!');
+        console.log('   Email delivery via Gmail API (HTTPS)');
         return true;
     } catch (error) {
-        console.warn('⚠️ Gmail SMTP connection failed (expected on Railway - SMTP ports blocked)');
-        console.warn('   SMTP Error:', error.message);
-        console.warn('   This is OK if Gmail API OAuth2 is configured');
+        console.error('❌ Gmail API connection verification failed!');
+        console.error('   Error:', error.message);
+        console.error('   Check OAuth credentials: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN');
         return false;
     }
 }
 
 /**
- * Send email using Gmail API (OAuth2) - bypasses SMTP port blocks
+ * Send email using Gmail API (OAuth2)
+ * @param {Object} emailData - Email details (recipientEmail, recipientName, subject, htmlContent, textContent, senderName)
  */
-async function sendViaGmailAPI(emailData) {
+async function sendEmail(emailData) {
+    // Check if Gmail API is configured
+    if (!gmailApiConfigured || !oauth2Client) {
+        console.error('❌ Gmail API not configured. Cannot send email.');
+        return { success: false, message: 'Gmail API not configured' };
+    }
+
     try {
         const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
@@ -140,7 +87,7 @@ async function sendViaGmailAPI(emailData) {
             .replace(/\//g, '_')
             .replace(/=+$/, '');
 
-        console.log('📧 Attempting to send email via Gmail API:');
+        console.log('📧 Sending email via Gmail API:');
         console.log('   To:', emailData.recipientEmail);
         console.log('   From:', process.env.GMAIL_USER);
         console.log('   Subject:', emailData.subject);
@@ -159,87 +106,11 @@ async function sendViaGmailAPI(emailData) {
         return {
             success: true,
             messageId: result.data.id,
-            message: 'Email sent successfully via Gmail API'
-        };
-
-    } catch (error) {
-        console.error('❌ Gmail API email failed:', error.message);
-        return {
-            success: false,
-            error: error.message,
-            message: 'Failed to send email via Gmail API'
-        };
-    }
-}
-
-/**
- * Send email notification using Gmail API (preferred) or SMTP (fallback)
- * @param {Object} emailData - Email details
- */
-async function sendEmail(emailData) {
-    // Try Gmail API first if configured
-    if (gmailApiConfigured && oauth2Client) {
-        console.log('🌐 Using Gmail API (OAuth2) - HTTPS delivery');
-        return await sendViaGmailAPI(emailData);
-    }
-
-    // Fallback to SMTP if Gmail API not configured
-    console.log('📮 Using Gmail SMTP (fallback)');
-
-    // Initialize transporter if not already done
-    if (!transporter) {
-        transporter = initializeTransporter();
-    }
-
-    // Check if transporter is available
-    if (!transporter) {
-        console.warn('Gmail not configured. Skipping email.');
-        return { success: false, message: 'Gmail not configured' };
-    }
-
-    try {
-        const mailOptions = {
-            from: {
-                name: emailData.senderName || 'Sincro Fulfillment',
-                address: process.env.GMAIL_USER
-            },
-            to: {
-                name: emailData.recipientName,
-                address: emailData.recipientEmail
-            },
-            subject: emailData.subject,
-            text: emailData.textContent,
-            html: emailData.htmlContent,
-            replyTo: process.env.GMAIL_USER
-        };
-
-        console.log('📧 Attempting to send email:');
-        console.log('   To:', emailData.recipientEmail);
-        console.log('   From:', process.env.GMAIL_USER);
-        console.log('   Subject:', emailData.subject);
-
-        // Send email with timeout
-        const result = await Promise.race([
-            transporter.sendMail(mailOptions),
-            new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Email send timeout after 30s')), 30000)
-            )
-        ]);
-
-        console.log('✉️ Email sent successfully to:', emailData.recipientEmail);
-        console.log('✉️ Message ID:', result.messageId);
-        return {
-            success: true,
-            messageId: result.messageId,
             message: 'Email sent successfully'
         };
 
     } catch (error) {
-        console.error('❌ Email sending failed!');
-        console.error('   Error type:', error.name);
-        console.error('   Error message:', error.message);
-        console.error('   Error code:', error.code);
-        console.error('   Full error:', error);
+        console.error('❌ Gmail API email failed:', error.message);
         return {
             success: false,
             error: error.message,
