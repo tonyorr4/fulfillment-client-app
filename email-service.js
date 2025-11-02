@@ -68,15 +68,34 @@ function initializeTransporter() {
 }
 
 /**
- * Verify Gmail connection
+ * Verify Gmail connection (API or SMTP)
  */
 async function verifyConnection() {
+    // If Gmail API is configured, verify that instead of SMTP
+    if (gmailApiConfigured && oauth2Client) {
+        console.log('🔍 Verifying Gmail API connection...');
+        try {
+            // Test Gmail API by checking if we can access the Gmail API
+            const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+            await gmail.users.getProfile({ userId: 'me' });
+            console.log('✅ Gmail API connection verified successfully!');
+            console.log('   Email delivery will use Gmail API (HTTPS) - Railway compatible');
+            return true;
+        } catch (error) {
+            console.error('❌ Gmail API connection verification failed!');
+            console.error('   Error:', error.message);
+            console.error('   Check that your OAuth credentials are correct in Railway');
+            return false;
+        }
+    }
+
+    // Fallback to SMTP verification (for local development)
     if (!transporter) {
         transporter = initializeTransporter();
     }
 
     if (!transporter) {
-        console.warn('⚠️ Cannot verify Gmail connection - transporter not initialized');
+        console.warn('⚠️ No email configuration found (Gmail API or SMTP)');
         return false;
     }
 
@@ -86,13 +105,9 @@ async function verifyConnection() {
         console.log('✅ Gmail SMTP connection verified successfully!');
         return true;
     } catch (error) {
-        console.error('❌ Gmail SMTP connection verification failed!');
-        console.error('   Error:', error.message);
-        console.error('   This usually means:');
-        console.error('   1. Invalid app password');
-        console.error('   2. 2FA not enabled on Google account');
-        console.error('   3. App password expired or revoked');
-        console.error('   4. Account security settings blocking access');
+        console.warn('⚠️ Gmail SMTP connection failed (expected on Railway - SMTP ports blocked)');
+        console.warn('   SMTP Error:', error.message);
+        console.warn('   This is OK if Gmail API OAuth2 is configured');
         return false;
     }
 }
