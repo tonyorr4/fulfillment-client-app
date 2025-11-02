@@ -334,6 +334,48 @@ async function logActivity(clientId, userId, action, details = {}) {
     `, [clientId, userId, action, JSON.stringify(details)]);
 }
 
+// Helper function to toggle comment like
+async function toggleCommentLike(commentId, userId) {
+    // Check if user already liked this comment
+    const existingLike = await pool.query(`
+        SELECT * FROM comment_likes
+        WHERE comment_id = $1 AND user_id = $2
+    `, [commentId, userId]);
+
+    if (existingLike.rows.length > 0) {
+        // Unlike - remove the like
+        await pool.query(`
+            DELETE FROM comment_likes
+            WHERE comment_id = $1 AND user_id = $2
+        `, [commentId, userId]);
+        return { liked: false };
+    } else {
+        // Like - add the like
+        await pool.query(`
+            INSERT INTO comment_likes (comment_id, user_id)
+            VALUES ($1, $2)
+        `, [commentId, userId]);
+        return { liked: true };
+    }
+}
+
+// Helper function to get likes for comments
+async function getLikesForComments(commentIds) {
+    if (!commentIds || commentIds.length === 0) {
+        return [];
+    }
+
+    const result = await pool.query(`
+        SELECT cl.comment_id, cl.user_id, u.name as user_name
+        FROM comment_likes cl
+        LEFT JOIN users u ON cl.user_id = u.id
+        WHERE cl.comment_id = ANY($1)
+        ORDER BY cl.created_at ASC
+    `, [commentIds]);
+
+    return result.rows;
+}
+
 // Helper function to find or create user
 // Access control helper functions
 async function createAccessRequest(googleId, email, name, department, reason) {
@@ -410,6 +452,8 @@ module.exports = {
     createComment,
     updateComment,
     logActivity,
+    toggleCommentLike,
+    getLikesForComments,
     createAccessRequest,
     getAccessRequestStatus
 };

@@ -20,7 +20,9 @@ const {
     getCommentsByClientId,
     createComment,
     updateComment,
-    logActivity
+    logActivity,
+    toggleCommentLike,
+    getLikesForComments
 } = require('./database');
 const { triggerAutomations } = require('./automation-engine');
 const {
@@ -294,10 +296,32 @@ app.get('/api/clients/:id', ensureAuthenticated, async (req, res) => {
         const subtasks = await getSubtasksByClientId(client.id);
         const comments = await getCommentsByClientId(client.id);
 
+        // Get likes for all comments
+        const commentIds = comments.map(c => c.id);
+        const likes = await getLikesForComments(commentIds);
+
+        // Group likes by comment_id
+        const likesByComment = {};
+        likes.forEach(like => {
+            if (!likesByComment[like.comment_id]) {
+                likesByComment[like.comment_id] = [];
+            }
+            likesByComment[like.comment_id].push({
+                user_id: like.user_id,
+                user_name: like.user_name
+            });
+        });
+
+        // Add likes to each comment
+        const commentsWithLikes = comments.map(comment => ({
+            ...comment,
+            likes: likesByComment[comment.id] || []
+        }));
+
         res.json({
             ...client,
             subtasks,
-            comments
+            comments: commentsWithLikes
         });
     } catch (error) {
         console.error('Error fetching client:', error);
@@ -911,6 +935,36 @@ app.patch('/api/comments/:commentId', ensureAuthenticated, async (req, res) => {
         } else {
             res.status(500).json({ error: 'Failed to edit comment' });
         }
+    }
+});
+
+// Toggle comment like
+app.post('/api/comments/:commentId/like', ensureAuthenticated, async (req, res) => {
+    try {
+        const commentId = req.params.commentId;
+        const userId = req.user.id;
+
+        // Toggle the like
+        const result = await toggleCommentLike(commentId, userId);
+
+        // Get updated like count and list of users who liked
+        const commentIds = [parseInt(commentId)];
+        const likes = await getLikesForComments(commentIds);
+
+        const likeData = likes.map(like => ({
+            user_id: like.user_id,
+            user_name: like.user_name
+        }));
+
+        res.json({
+            success: true,
+            liked: result.liked,
+            likeCount: likeData.length,
+            likes: likeData
+        });
+    } catch (error) {
+        console.error('Error toggling comment like:', error);
+        res.status(500).json({ error: 'Failed to toggle like' });
     }
 });
 

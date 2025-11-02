@@ -6,6 +6,7 @@ let currentUser = null;
 let allClients = [];
 let allUsers = []; // All approved users for assignee dropdown
 let currentClientCard = null;
+let currentClientData = null; // Store current client data with fresh comments
 let draggedCard = null;
 let isDragging = false;
 let dragStartTime = 0;
@@ -575,7 +576,8 @@ async function openClientDetail(clientId) {
         const clientDetails = await response.json();
         console.log('Client details received:', clientDetails);
 
-        // Store current client card reference
+        // Store current client data (with fresh comments) and card reference
+        currentClientData = clientDetails;
         currentClientCard = document.querySelector(`.card[data-id="${clientId}"]`);
 
         // Show modal FIRST
@@ -964,6 +966,13 @@ function renderComment(comment, commentBox, depth, hasReplies) {
         </button>
     ` : '';
 
+    // Like button with tooltip
+    const likes = comment.likes || [];
+    const likeCount = likes.length;
+    const userHasLiked = currentUser && likes.some(like => like.user_id === currentUser.id);
+    const likeButtonClass = userHasLiked ? 'comment-action-btn like-btn liked' : 'comment-action-btn like-btn';
+    const likeTooltip = likes.length > 0 ? likes.map(like => like.user_name).join(', ') : '';
+
     commentEl.innerHTML = `
         <div class="comment-avatar">${initials}</div>
         <div class="comment-content" ${indentStyle}>
@@ -974,6 +983,9 @@ function renderComment(comment, commentBox, depth, hasReplies) {
             </div>
             <div class="comment-text" data-comment-id="${comment.id}">${highlightMentions(comment.comment_text)}</div>
             <div class="comment-actions">
+                <button class="${likeButtonClass}" onclick="toggleLike(${comment.id})" title="${likeTooltip}">
+                    <i class="fas fa-heart"></i> ${likeCount > 0 ? likeCount : ''}
+                </button>
                 <button class="comment-action-btn reply-btn" onclick="replyToComment(${comment.id}, '${escapeHtml(comment.user_name)}')">
                     <i class="fas fa-reply"></i> Reply
                 </button>
@@ -1010,10 +1022,41 @@ function toggleCommentThread(commentId) {
         commentThreadState.collapsed.add(commentId);
     }
 
-    // Re-render comments
-    if (currentClientCard) {
-        const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
-        loadCommentsIntoModal(clientData.comments || []);
+    // Re-render comments using fresh data
+    if (currentClientData) {
+        loadCommentsIntoModal(currentClientData.comments || []);
+    }
+}
+
+// Toggle like on a comment
+async function toggleLike(commentId) {
+    try {
+        const response = await fetch(`/api/comments/${commentId}/like`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to toggle like');
+        }
+
+        const result = await response.json();
+
+        // Update the comment in currentClientData
+        if (currentClientData && currentClientData.comments) {
+            const comment = currentClientData.comments.find(c => c.id === commentId);
+            if (comment) {
+                comment.likes = result.likes;
+            }
+        }
+
+        // Re-render comments to show updated likes
+        if (currentClientData) {
+            loadCommentsIntoModal(currentClientData.comments || []);
+        }
+    } catch (error) {
+        console.error('Error toggling like:', error);
+        showToast('Failed to toggle like', 'error');
     }
 }
 
@@ -2038,9 +2081,483 @@ async function deleteAutomation(id) {
     }
 }
 
-// Open automation modal (placeholder for now)
+// ==================== AUTOMATION BUILDER WIZARD ====================
+
+let wizardCurrentStep = 1;
+let conditionIdCounter = 0;
+let actionIdCounter = 0;
+
+// Available client fields for conditions
+const clientFields = [
+    { value: 'battery', label: 'Battery/DG' },
+    { value: 'heavy_sku', label: 'Heavy SKU' },
+    { value: 'num_pallets', label: 'Number of Pallets' },
+    { value: 'num_skus', label: 'Number of SKUs' },
+    { value: 'client_type', label: 'Client Type' },
+    { value: 'avg_orders', label: 'Avg Orders/Month' },
+    { value: 'status', label: 'Status' },
+    { value: 'client_approved', label: 'Client Approved' },
+    { value: 'special_packaging', label: 'Special Packaging' },
+    { value: 'barcoding', label: 'Barcoding' }
+];
+
+// Available operators
+const operators = [
+    { value: 'equals', label: 'equals' },
+    { value: 'not_equals', label: 'not equals' },
+    { value: 'contains', label: 'contains' },
+    { value: 'not_contains', label: 'not contains' },
+    { value: 'in', label: 'in' },
+    { value: 'not_in', label: 'not in' },
+    { value: 'is_empty', label: 'is empty' },
+    { value: 'is_not_empty', label: 'is not empty' }
+];
+
+// Writable client fields for actions
+const writableFields = [
+    { value: 'status', label: 'Status' },
+    { value: 'client_approved', label: 'Client Approved' },
+    { value: 'auto_approved', label: 'Auto Approved' },
+    { value: 'fulfillment_ops', label: 'Fulfillment Ops' },
+    { value: 'sales_team', label: 'Sales Team' },
+    { value: 'heavy_sku', label: 'Heavy SKU' },
+    { value: 'special_packaging', label: 'Special Packaging' },
+    { value: 'barcoding', label: 'Barcoding' }
+];
+
+// Open automation modal
 function openAutomationModal() {
-    alert('Automation builder coming soon! For now, automations are managed via the database.\n\nDefault automations have been created:\n- Auto-assign Ian to fulfillment ops\n- Auto-approve simple clients\n- Create client setup subtasks');
+    // Reset wizard state
+    wizardCurrentStep = 1;
+    conditionIdCounter = 0;
+    actionIdCounter = 0;
+
+    // Reset form
+    document.getElementById('automation-name').value = '';
+    document.getElementById('automation-description').value = '';
+    document.getElementById('automation-trigger').value = '';
+    document.getElementById('automation-order').value = '0';
+    document.getElementById('automation-enabled').checked = true;
+
+    // Reset condition builder
+    document.getElementById('condition-mode').value = 'always';
+    document.getElementById('condition-builder').style.display = 'none';
+    document.querySelector('#root-condition-group .condition-list').innerHTML = '';
+
+    // Reset action list
+    document.getElementById('action-list').innerHTML = '';
+
+    // Set modal title
+    document.getElementById('automationModalTitle').textContent = 'Create New Automation';
+
+    // Show modal
+    document.getElementById('automationModal').classList.add('active');
+
+    // Go to step 1
+    updateWizardStep(1);
+}
+
+// Close automation modal
+function closeAutomationModal() {
+    document.getElementById('automationModal').classList.remove('active');
+}
+
+// Update wizard step
+function updateWizardStep(step) {
+    wizardCurrentStep = step;
+
+    // Update step indicators
+    document.querySelectorAll('.wizard-step').forEach(el => {
+        const stepNum = parseInt(el.dataset.step);
+        el.classList.remove('active', 'completed');
+        if (stepNum === step) {
+            el.classList.add('active');
+        } else if (stepNum < step) {
+            el.classList.add('completed');
+        }
+    });
+
+    // Update step content
+    document.querySelectorAll('.wizard-step-content').forEach(el => {
+        el.classList.remove('active');
+    });
+    document.getElementById(`wizard-step-${step}`).classList.add('active');
+
+    // Update buttons
+    document.getElementById('wizard-back-btn').style.display = step > 1 ? 'inline-block' : 'none';
+    document.getElementById('wizard-next-btn').style.display = step < 3 ? 'inline-block' : 'none';
+    document.getElementById('wizard-save-btn').style.display = step === 3 ? 'inline-block' : 'none';
+}
+
+// Next wizard step
+function nextWizardStep() {
+    // Validate current step
+    if (wizardCurrentStep === 1) {
+        const name = document.getElementById('automation-name').value.trim();
+        const trigger = document.getElementById('automation-trigger').value;
+
+        if (!name) {
+            showToast('Please enter an automation name', 'error');
+            return;
+        }
+
+        if (!trigger) {
+            showToast('Please select a trigger event', 'error');
+            return;
+        }
+    }
+
+    if (wizardCurrentStep < 3) {
+        updateWizardStep(wizardCurrentStep + 1);
+    }
+}
+
+// Previous wizard step
+function previousWizardStep() {
+    if (wizardCurrentStep > 1) {
+        updateWizardStep(wizardCurrentStep - 1);
+    }
+}
+
+// Toggle condition mode (always vs conditional)
+function toggleConditionMode() {
+    const mode = document.getElementById('condition-mode').value;
+    const builder = document.getElementById('condition-builder');
+    builder.style.display = mode === 'conditional' ? 'block' : 'none';
+
+    if (mode === 'conditional' && document.querySelector('#root-condition-group .condition-list').children.length === 0) {
+        // Add first condition if none exist
+        addCondition('root-condition-group');
+    }
+
+    updateConditionPreview();
+}
+
+// Add condition to group
+function addCondition(groupId) {
+    const conditionId = `condition-${conditionIdCounter++}`;
+    const conditionList = document.querySelector(`#${groupId} .condition-list`);
+
+    const conditionHtml = `
+        <div class="condition-item" id="${conditionId}">
+            <select class="field-select" onchange="updateConditionPreview()">
+                <option value="">-- Select field --</option>
+                ${clientFields.map(f => `<option value="${f.value}">${f.label}</option>`).join('')}
+            </select>
+            <select class="operator-select" onchange="updateConditionPreview()">
+                ${operators.map(op => `<option value="${op.value}">${op.label}</option>`).join('')}
+            </select>
+            <input type="text" class="value-input" placeholder="Value" onchange="updateConditionPreview()">
+            <button type="button" class="btn-icon delete" onclick="removeCondition('${conditionId}')" title="Remove">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+
+    conditionList.insertAdjacentHTML('beforeend', conditionHtml);
+    updateConditionPreview();
+}
+
+// Remove condition
+function removeCondition(conditionId) {
+    document.getElementById(conditionId).remove();
+    updateConditionPreview();
+}
+
+// Update group operator
+function updateGroupOperator(select) {
+    const group = select.closest('.condition-group');
+    group.dataset.operator = select.value;
+
+    const span = group.querySelector('.condition-group-header span');
+    span.textContent = select.value === 'AND' ? 'All conditions must be true' : 'At least one condition must be true';
+
+    updateConditionPreview();
+}
+
+// Update condition preview
+function updateConditionPreview() {
+    const mode = document.getElementById('condition-mode').value;
+    const previewEl = document.getElementById('condition-preview-text');
+
+    if (mode === 'always') {
+        previewEl.textContent = 'Always (no conditions)';
+        return;
+    }
+
+    const rootGroup = document.getElementById('root-condition-group');
+    const operator = rootGroup.dataset.operator;
+    const conditions = Array.from(rootGroup.querySelectorAll('.condition-item'));
+
+    if (conditions.length === 0) {
+        previewEl.textContent = 'No conditions';
+        return;
+    }
+
+    const parts = conditions.map(cond => {
+        const field = cond.querySelector('.field-select').value;
+        const op = cond.querySelector('.operator-select').value;
+        const value = cond.querySelector('.value-input').value;
+
+        if (!field) return '';
+
+        return `${field} ${op} "${value}"`;
+    }).filter(p => p);
+
+    if (parts.length === 0) {
+        previewEl.textContent = 'Incomplete conditions';
+    } else {
+        previewEl.textContent = parts.join(` ${operator} `);
+    }
+}
+
+// Show action menu
+function showActionMenu(event) {
+    const menu = document.getElementById('action-menu');
+    const button = event.target.closest('button');
+    const rect = button.getBoundingClientRect();
+
+    menu.style.display = 'block';
+    menu.style.position = 'absolute';
+    menu.style.top = `${rect.bottom + 5}px`;
+    menu.style.left = `${rect.left}px`;
+
+    // Close menu when clicking outside
+    setTimeout(() => {
+        const closeMenu = (e) => {
+            if (!menu.contains(e.target) && !button.contains(e.target)) {
+                menu.style.display = 'none';
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        document.addEventListener('click', closeMenu);
+    }, 100);
+}
+
+// Add action
+function addAction(actionType) {
+    const actionId = `action-${actionIdCounter++}`;
+    const actionList = document.getElementById('action-list');
+
+    // Hide menu
+    document.getElementById('action-menu').style.display = 'none';
+
+    let actionHtml = '';
+
+    if (actionType === 'set_field') {
+        actionHtml = `
+            <div class="action-item" id="${actionId}" data-type="set_field">
+                <div class="action-item-header">
+                    <h4><i class="fas fa-edit"></i> Set Field</h4>
+                    <button type="button" class="btn-icon delete" onclick="removeAction('${actionId}')" title="Remove">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="action-item-body">
+                    <div class="form-group">
+                        <label>Field</label>
+                        <select class="action-field">
+                            <option value="">-- Select field --</option>
+                            ${writableFields.map(f => `<option value="${f.value}">${f.label}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Value</label>
+                        <input type="text" class="action-value" placeholder="Enter value">
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (actionType === 'create_subtask') {
+        actionHtml = `
+            <div class="action-item" id="${actionId}" data-type="create_subtask">
+                <div class="action-item-header">
+                    <h4><i class="fas fa-tasks"></i> Create Subtask</h4>
+                    <button type="button" class="btn-icon delete" onclick="removeAction('${actionId}')" title="Remove">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="action-item-body">
+                    <div class="form-group">
+                        <label>Task Text</label>
+                        <input type="text" class="subtask-text" placeholder="Enter subtask description">
+                    </div>
+                    <div class="form-group">
+                        <label>Assign To</label>
+                        <select class="assignee-type" onchange="toggleAssigneeType(this)">
+                            <option value="field">Use client field</option>
+                            <option value="static">Specific person</option>
+                        </select>
+                    </div>
+                    <div class="form-group assignee-field-group">
+                        <label>Client Field</label>
+                        <select class="assignee-field">
+                            <option value="sales_team">Sales Team</option>
+                            <option value="fulfillment_ops">Fulfillment Ops</option>
+                        </select>
+                    </div>
+                    <div class="form-group assignee-static-group" style="display: none;">
+                        <label>Person Name</label>
+                        <input type="text" class="assignee-static" placeholder="Enter person name">
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" class="mark-auto-created" checked>
+                            <span>Mark as auto-created</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    actionList.insertAdjacentHTML('beforeend', actionHtml);
+}
+
+// Remove action
+function removeAction(actionId) {
+    document.getElementById(actionId).remove();
+}
+
+// Toggle assignee type (field vs static)
+function toggleAssigneeType(select) {
+    const actionItem = select.closest('.action-item');
+    const fieldGroup = actionItem.querySelector('.assignee-field-group');
+    const staticGroup = actionItem.querySelector('.assignee-static-group');
+
+    if (select.value === 'field') {
+        fieldGroup.style.display = 'block';
+        staticGroup.style.display = 'none';
+    } else {
+        fieldGroup.style.display = 'none';
+        staticGroup.style.display = 'block';
+    }
+}
+
+// Save automation
+async function saveAutomation() {
+    try {
+        // Collect basic info
+        const name = document.getElementById('automation-name').value.trim();
+        const description = document.getElementById('automation-description').value.trim();
+        const trigger = document.getElementById('automation-trigger').value;
+        const order = parseInt(document.getElementById('automation-order').value) || 0;
+        const enabled = document.getElementById('automation-enabled').checked;
+
+        // Validate
+        if (!name || !trigger) {
+            showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        // Build conditions
+        const conditionMode = document.getElementById('condition-mode').value;
+        let conditions;
+
+        if (conditionMode === 'always') {
+            conditions = { type: 'group', operator: 'AND', conditions: [] };
+        } else {
+            const rootGroup = document.getElementById('root-condition-group');
+            const operator = rootGroup.dataset.operator;
+            const conditionItems = Array.from(rootGroup.querySelectorAll('.condition-item'));
+
+            const conditionsList = conditionItems.map(item => {
+                const field = item.querySelector('.field-select').value;
+                const op = item.querySelector('.operator-select').value;
+                let value = item.querySelector('.value-input').value;
+
+                if (!field) return null;
+
+                // Parse value for array operators
+                if (op === 'in' || op === 'not_in') {
+                    try {
+                        value = JSON.parse(value);
+                    } catch (e) {
+                        // Try to split by comma
+                        value = value.split(',').map(v => v.trim());
+                    }
+                }
+
+                return {
+                    type: 'condition',
+                    field: field,
+                    operator: op,
+                    value: value
+                };
+            }).filter(c => c !== null);
+
+            conditions = {
+                type: 'group',
+                operator: operator,
+                conditions: conditionsList
+            };
+        }
+
+        // Build actions
+        const actionItems = Array.from(document.querySelectorAll('.action-item'));
+        const actions = actionItems.map(item => {
+            const actionType = item.dataset.type;
+
+            if (actionType === 'set_field') {
+                return {
+                    type: 'set_field',
+                    field: item.querySelector('.action-field').value,
+                    value: item.querySelector('.action-value').value
+                };
+            } else if (actionType === 'create_subtask') {
+                const action = {
+                    type: 'create_subtask',
+                    text: item.querySelector('.subtask-text').value,
+                    mark_auto_created: item.querySelector('.mark-auto-created').checked
+                };
+
+                const assigneeType = item.querySelector('.assignee-type').value;
+                if (assigneeType === 'field') {
+                    action.assignee_field = item.querySelector('.assignee-field').value;
+                } else {
+                    action.assignee_static = item.querySelector('.assignee-static').value;
+                }
+
+                return action;
+            }
+        });
+
+        // Validate at least one action
+        if (actions.length === 0) {
+            showToast('Please add at least one action', 'error');
+            updateWizardStep(3);
+            return;
+        }
+
+        // Send to API
+        const response = await fetch('/api/automations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                name,
+                description,
+                trigger_event: trigger,
+                conditions,
+                actions,
+                enabled,
+                execution_order: order
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to save automation');
+        }
+
+        showToast('Automation created successfully!', 'success');
+        closeAutomationModal();
+        await loadAutomations();
+
+    } catch (error) {
+        console.error('Error saving automation:', error);
+        showToast(error.message || 'Failed to save automation', 'error');
+    }
 }
 
 // ==================== INITIALIZATION ====================
@@ -2054,6 +2571,22 @@ window.openNewRequestModal = openNewRequestModal;
 window.closeModal = closeModal;
 window.openClientDetail = openClientDetail;
 window.logout = logout;
+window.toggleAutomation = toggleAutomation;
+window.deleteAutomation = deleteAutomation;
+window.openAutomationModal = openAutomationModal;
+window.closeAutomationModal = closeAutomationModal;
+window.nextWizardStep = nextWizardStep;
+window.previousWizardStep = previousWizardStep;
+window.toggleConditionMode = toggleConditionMode;
+window.addCondition = addCondition;
+window.removeCondition = removeCondition;
+window.updateGroupOperator = updateGroupOperator;
+window.updateConditionPreview = updateConditionPreview;
+window.showActionMenu = showActionMenu;
+window.addAction = addAction;
+window.removeAction = removeAction;
+window.toggleAssigneeType = toggleAssigneeType;
+window.saveAutomation = saveAutomation;
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Sincro Fulfillment Client App loaded');
