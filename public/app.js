@@ -871,7 +871,7 @@ async function addSubtask() {
     }
 }
 
-// Load comments into modal (with threading support)
+// Load comments into modal (with threading support - unlimited nesting)
 function loadCommentsIntoModal(comments) {
     try {
         // Find comments section - use simpler selector
@@ -890,10 +890,8 @@ function loadCommentsIntoModal(comments) {
             return;
         }
 
-        // Organize comments into threads (parent comments and their replies)
-        const parentComments = comments.filter(c => !c.parent_comment_id);
+        // Build a map of replies by parent ID (for all levels)
         const repliesByParent = {};
-
         comments.forEach(comment => {
             if (comment.parent_comment_id) {
                 if (!repliesByParent[comment.parent_comment_id]) {
@@ -903,35 +901,48 @@ function loadCommentsIntoModal(comments) {
             }
         });
 
-        // Render parent comments and their replies
-        parentComments.forEach(comment => {
-            renderComment(comment, commentBox, false);
+        // Find top-level comments (no parent)
+        const parentComments = comments.filter(c => !c.parent_comment_id);
 
-            // Render replies indented
-            const replies = repliesByParent[comment.id] || [];
-            replies.forEach(reply => {
-                renderComment(reply, commentBox, true);
-            });
+        // Render parent comments and their replies recursively
+        parentComments.forEach(comment => {
+            renderCommentThread(comment, commentBox, 0, repliesByParent);
         });
     } catch (error) {
         console.error('Error loading comments:', error);
     }
 }
 
+// Recursively render a comment and all its replies
+function renderCommentThread(comment, commentBox, depth, repliesByParent) {
+    // Render this comment
+    renderComment(comment, commentBox, depth);
+
+    // Recursively render all replies to this comment
+    const replies = repliesByParent[comment.id] || [];
+    replies.forEach(reply => {
+        renderCommentThread(reply, commentBox, depth + 1, repliesByParent);
+    });
+}
+
 // Render a single comment
-function renderComment(comment, commentBox, isReply) {
+function renderComment(comment, commentBox, depth) {
     const commentEl = document.createElement('div');
-    commentEl.className = 'comment' + (isReply ? ' comment-reply' : '');
+    commentEl.className = 'comment' + (depth > 0 ? ' comment-reply' : '');
     commentEl.dataset.commentId = comment.id;
+    commentEl.dataset.depth = depth;
 
     const initials = getInitials(comment.user_name);
     const timeAgo = formatTimeAgo(new Date(comment.created_at));
     const isOwnComment = currentUser && comment.user_id === currentUser.id;
     const editedIndicator = comment.edited_at ? '<span class="edited-indicator">(edited)</span>' : '';
 
+    // Calculate indentation based on depth
+    const indentStyle = depth > 0 ? `style="margin-left: ${depth * 48}px;"` : '';
+
     commentEl.innerHTML = `
         <div class="comment-avatar">${initials}</div>
-        <div class="comment-content">
+        <div class="comment-content" ${indentStyle}>
             <div class="comment-header">
                 <span class="comment-author">${comment.user_name}</span>
                 <span class="comment-time">${timeAgo} ${editedIndicator}</span>
