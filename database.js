@@ -376,6 +376,53 @@ async function getLikesForComments(commentIds) {
     return result.rows;
 }
 
+// Helper function to create attachment
+async function createAttachment(clientId, fileName, originalName, fileSize, fileType, filePath, uploadedBy) {
+    const result = await pool.query(`
+        INSERT INTO attachments (client_id, file_name, original_name, file_size, file_type, file_path, uploaded_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+    `, [clientId, fileName, originalName, fileSize, fileType, filePath, uploadedBy]);
+
+    return result.rows[0];
+}
+
+// Helper function to get attachments for a client
+async function getAttachmentsByClientId(clientId) {
+    const result = await pool.query(`
+        SELECT a.*, u.name as uploaded_by_name
+        FROM attachments a
+        LEFT JOIN users u ON a.uploaded_by = u.id
+        WHERE a.client_id = $1
+        ORDER BY a.created_at DESC
+    `, [clientId]);
+
+    return result.rows;
+}
+
+// Helper function to get attachment by ID
+async function getAttachmentById(attachmentId) {
+    const result = await pool.query(`
+        SELECT a.*, u.name as uploaded_by_name
+        FROM attachments a
+        LEFT JOIN users u ON a.uploaded_by = u.id
+        WHERE a.id = $1
+    `, [attachmentId]);
+
+    return result.rows[0];
+}
+
+// Helper function to delete attachment
+async function deleteAttachment(attachmentId) {
+    const result = await pool.query(`
+        DELETE FROM attachments
+        WHERE id = $1
+        RETURNING *
+    `, [attachmentId]);
+
+    return result.rows[0];
+}
+
 // Helper function to find or create user
 // Access control helper functions
 async function createAccessRequest(googleId, email, name, department, reason) {
@@ -454,6 +501,10 @@ module.exports = {
     logActivity,
     toggleCommentLike,
     getLikesForComments,
+    createAttachment,
+    getAttachmentsByClientId,
+    getAttachmentById,
+    deleteAttachment,
     createAccessRequest,
     getAccessRequestStatus
 };

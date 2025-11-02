@@ -1124,6 +1124,106 @@
             opacity: 1;
         }
 
+        /* Attachments */
+        .attachments-container {
+            margin-top: 12px;
+        }
+
+        .attachment-upload {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 16px;
+            background: var(--bg-tertiary);
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+        }
+
+        .file-hint {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .attachment-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+
+        .attachment-item:hover {
+            background: var(--bg-tertiary);
+            border-color: #667eea;
+        }
+
+        .attachment-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px;
+            color: white;
+            font-size: 16px;
+        }
+
+        .attachment-info {
+            flex: 1;
+        }
+
+        .attachment-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .attachment-meta {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        .attachment-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .attachment-btn {
+            padding: 6px 12px;
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .attachment-btn:hover {
+            background: var(--hover-bg);
+            border-color: #667eea;
+            color: var(--text-primary);
+        }
+
+        .attachment-btn.delete:hover {
+            background: #fee;
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
+
         /* Subtasks */
         .subtask-list {
             list-style: none;
@@ -2073,6 +2173,23 @@
                                 <textarea id="commentTextarea" placeholder="Add a comment... Use @ to mention someone"></textarea>
                                 <div id="mentionDropdown" class="mention-dropdown"></div>
                                 <button class="btn btn-primary" onclick="addComment()">Comment</button>
+                            </div>
+                        </div>
+
+                        <!-- Attachments -->
+                        <div class="detail-section">
+                            <h3>Attachments</h3>
+                            <div class="attachments-container">
+                                <div class="attachment-upload">
+                                    <input type="file" id="attachmentInput" style="display: none;" onchange="handleFileSelect(event)">
+                                    <button class="btn btn-secondary" onclick="document.getElementById('attachmentInput').click()">
+                                        <i class="fas fa-paperclip"></i> Upload File
+                                    </button>
+                                    <span class="file-hint">Max 10MB - Images, PDFs, Documents, Archives</span>
+                                </div>
+                                <ul class="attachment-list">
+                                    <!-- Attachments loaded dynamically -->
+                                </ul>
                             </div>
                         </div>
                     </div>

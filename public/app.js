@@ -684,6 +684,9 @@ function populateClientDetailModal(client) {
         // Load comments
         loadCommentsIntoModal(client.comments || []);
 
+        // Load attachments
+        loadAttachmentsIntoModal(client.attachments || []);
+
         // Update sidebar fields
         updateSidebarFields(client);
 
@@ -1499,6 +1502,179 @@ async function addComment() {
     } catch (error) {
         console.error('Error adding comment:', error);
         showToast('Failed to add comment', 'error');
+    }
+}
+
+// ==================== ATTACHMENTS ====================
+
+// Load attachments into modal
+function loadAttachmentsIntoModal(attachments) {
+    const attachmentList = document.querySelector('.attachment-list');
+    if (!attachmentList) return;
+
+    attachmentList.innerHTML = '';
+
+    if (!attachments || attachments.length === 0) {
+        return;
+    }
+
+    attachments.forEach(attachment => {
+        const li = document.createElement('li');
+        li.className = 'attachment-item';
+
+        // Get file icon based on type
+        const icon = getFileIcon(attachment.file_type);
+
+        // Format file size
+        const fileSize = formatFileSize(attachment.file_size);
+
+        // Format date
+        const uploadDate = new Date(attachment.created_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+
+        const canDelete = currentUser && (attachment.uploaded_by === currentUser.id || currentUser.role === 'Admin');
+
+        li.innerHTML = `
+            <div class="attachment-icon">
+                <i class="fas fa-${icon}"></i>
+            </div>
+            <div class="attachment-info">
+                <div class="attachment-name">${escapeHtml(attachment.original_name)}</div>
+                <div class="attachment-meta">${fileSize} • Uploaded by ${escapeHtml(attachment.uploaded_by_name || 'Unknown')} on ${uploadDate}</div>
+            </div>
+            <div class="attachment-actions">
+                <button class="attachment-btn" onclick="downloadAttachment(${attachment.id}, '${escapeHtml(attachment.original_name)}')">
+                    <i class="fas fa-download"></i> Download
+                </button>
+                ${canDelete ? `
+                    <button class="attachment-btn delete" onclick="deleteAttachment(${attachment.id})">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                ` : ''}
+            </div>
+        `;
+
+        attachmentList.appendChild(li);
+    });
+}
+
+// Get file icon based on MIME type
+function getFileIcon(mimeType) {
+    if (!mimeType) return 'file';
+
+    if (mimeType.startsWith('image/')) return 'file-image';
+    if (mimeType.includes('pdf')) return 'file-pdf';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'file-word';
+    if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'file-excel';
+    if (mimeType.includes('zip') || mimeType.includes('archive')) return 'file-archive';
+    if (mimeType.includes('text')) return 'file-alt';
+
+    return 'file';
+}
+
+// Format file size in human-readable format
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Handle file selection
+async function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        showToast('File size must be less than 10MB', 'error');
+        event.target.value = '';
+        return;
+    }
+
+    if (!currentClientData) {
+        showToast('No client selected', 'error');
+        return;
+    }
+
+    // Upload file
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        showToast('Uploading file...', 'info');
+
+        const response = await fetch(`/api/clients/${currentClientData.id}/attachments`, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to upload file');
+        }
+
+        const result = await response.json();
+
+        showToast('File uploaded successfully', 'success');
+
+        // Reload client details to show new attachment
+        await openClientDetail(currentClientData.id);
+
+        // Clear file input
+        event.target.value = '';
+
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        showToast(error.message || 'Failed to upload file', 'error');
+        event.target.value = '';
+    }
+}
+
+// Download attachment
+async function downloadAttachment(attachmentId, fileName) {
+    try {
+        window.open(`/api/attachments/${attachmentId}/download`, '_blank');
+    } catch (error) {
+        console.error('Error downloading attachment:', error);
+        showToast('Failed to download file', 'error');
+    }
+}
+
+// Delete attachment
+async function deleteAttachment(attachmentId) {
+    if (!confirm('Are you sure you want to delete this attachment?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/attachments/${attachmentId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete attachment');
+        }
+
+        showToast('Attachment deleted', 'success');
+
+        // Reload client details
+        if (currentClientData) {
+            await openClientDetail(currentClientData.id);
+        }
+
+    } catch (error) {
+        console.error('Error deleting attachment:', error);
+        showToast(error.message || 'Failed to delete attachment', 'error');
     }
 }
 
@@ -2728,6 +2904,9 @@ window.addAction = addAction;
 window.removeAction = removeAction;
 window.toggleAssigneeType = toggleAssigneeType;
 window.saveAutomation = saveAutomation;
+window.handleFileSelect = handleFileSelect;
+window.downloadAttachment = downloadAttachment;
+window.deleteAttachment = deleteAttachment;
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Sincro Fulfillment Client App loaded');

@@ -4,6 +4,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 require('dotenv').config();
 
 const { passport, ensureAuthenticated, checkAutoAdmin } = require('./auth-config');
@@ -22,7 +24,11 @@ const {
     updateComment,
     logActivity,
     toggleCommentLike,
-    getLikesForComments
+    getLikesForComments,
+    createAttachment,
+    getAttachmentsByClientId,
+    getAttachmentById,
+    deleteAttachment
 } = require('./database');
 const { triggerAutomations } = require('./automation-engine');
 const {
@@ -47,6 +53,44 @@ const {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Configure multer for file uploads
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadsDir);
+    },
+    filename: function (req, file, cb) {
+        // Generate unique filename: timestamp-randomstring-originalname
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        const nameWithoutExt = path.basename(file.originalname, ext);
+        cb(null, nameWithoutExt + '-' + uniqueSuffix + ext);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
+    },
+    fileFilter: function (req, file, cb) {
+        // Accept common file types
+        const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|csv|zip/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Only images, documents, and archives are allowed!'));
+        }
+    }
+});
 
 // Trust proxy (required for Railway deployment)
 app.set('trust proxy', true);
@@ -295,6 +339,7 @@ app.get('/api/clients/:id', ensureAuthenticated, async (req, res) => {
 
         const subtasks = await getSubtasksByClientId(client.id);
         const comments = await getCommentsByClientId(client.id);
+        const attachments = await getAttachmentsByClientId(client.id);
 
         // Get likes for all comments
         const commentIds = comments.map(c => c.id);
@@ -321,7 +366,8 @@ app.get('/api/clients/:id', ensureAuthenticated, async (req, res) => {
         res.json({
             ...client,
             subtasks,
-            comments: commentsWithLikes
+            comments: commentsWithLikes,
+            attachments
         });
     } catch (error) {
         console.error('Error fetching client:', error);
@@ -965,6 +1011,107 @@ app.post('/api/comments/:commentId/like', ensureAuthenticated, async (req, res) 
     } catch (error) {
         console.error('Error toggling comment like:', error);
         res.status(500).json({ error: 'Failed to toggle like' });
+    }
+});
+
+// ==================== ATTACHMENT ROUTES ====================
+
+// Upload attachment
+app.post('/api/clients/:id/attachments', ensureAuthenticated, upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const clientId = req.params.id;
+        const file = req.file;
+
+        // Create attachment record in database
+        const attachment = await createAttachment(
+            clientId,
+            file.filename,
+            file.originalname,
+            file.size,
+            file.mimetype,
+            file.path,
+            req.user.id
+        );
+
+        res.json({
+            success: true,
+            attachment: {
+                id: attachment.id,
+                file_name: attachment.file_name,
+                original_name: attachment.original_name,
+                file_size: attachment.file_size,
+                file_type: attachment.file_type,
+                uploaded_by_name: req.user.name,
+                created_at: attachment.created_at
+            }
+        });
+    } catch (error) {
+        console.error('Error uploading attachment:', error);
+        // Delete file if database save failed
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ error: 'Failed to upload attachment' });
+    }
+});
+
+// Download attachment
+app.get('/api/attachments/:id/download', ensureAuthenticated, async (req, res) => {
+    try {
+        const attachment = await getAttachmentById(req.params.id);
+
+        if (!attachment) {
+            return res.status(404).json({ error: 'Attachment not found' });
+        }
+
+        // Check if file exists
+        if (!fs.existsSync(attachment.file_path)) {
+            return res.status(404).json({ error: 'File not found on server' });
+        }
+
+        // Set headers for download
+        res.setHeader('Content-Disposition', `attachment; filename="${attachment.original_name}"`);
+        res.setHeader('Content-Type', attachment.file_type);
+
+        // Stream file to response
+        const fileStream = fs.createReadStream(attachment.file_path);
+        fileStream.pipe(res);
+    } catch (error) {
+        console.error('Error downloading attachment:', error);
+        res.status(500).json({ error: 'Failed to download attachment' });
+    }
+});
+
+// Delete attachment
+app.delete('/api/attachments/:id', ensureAuthenticated, async (req, res) => {
+    try {
+        const attachment = await getAttachmentById(req.params.id);
+
+        if (!attachment) {
+            return res.status(404).json({ error: 'Attachment not found' });
+        }
+
+        // Only allow deletion by uploader or admin
+        if (attachment.uploaded_by !== req.user.id && req.user.role !== 'Admin') {
+            return res.status(403).json({ error: 'You do not have permission to delete this attachment' });
+        }
+
+        // Delete from database
+        await deleteAttachment(req.params.id);
+
+        // Delete file from filesystem
+        if (fs.existsSync(attachment.file_path)) {
+            fs.unlinkSync(attachment.file_path);
+        }
+
+        res.json({ success: true, message: 'Attachment deleted' });
+    } catch (error) {
+        console.error('Error deleting attachment:', error);
+        res.status(500).json({ error: 'Failed to delete attachment' });
     }
 });
 
