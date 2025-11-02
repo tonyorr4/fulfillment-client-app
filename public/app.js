@@ -210,6 +210,37 @@ async function loadAllClients() {
     }
 }
 
+// Update filter counts
+function updateFilterCounts() {
+    // Count clients by status
+    const counts = {
+        'all': allClients.length,
+        'new-request': 0,
+        'signing': 0,
+        'client-setup': 0,
+        'setup-complete': 0,
+        'inbound': 0,
+        'fulfilling': 0,
+        'complete': 0,
+        'not-pursuing': 0
+    };
+
+    allClients.forEach(client => {
+        if (counts.hasOwnProperty(client.status)) {
+            counts[client.status]++;
+        }
+    });
+
+    // Update each filter pill count
+    document.querySelectorAll('.filter-pill').forEach(pill => {
+        const filter = pill.getAttribute('data-filter');
+        const countSpan = pill.querySelector('.filter-count');
+        if (countSpan && counts.hasOwnProperty(filter)) {
+            countSpan.textContent = `(${counts[filter]})`;
+        }
+    });
+}
+
 // Render all clients on the board
 function renderAllClients() {
     const cardGrid = document.getElementById('cardGrid');
@@ -220,6 +251,9 @@ function renderAllClients() {
 
     // Clear the grid
     cardGrid.innerHTML = '';
+
+    // Update filter counts
+    updateFilterCounts();
 
     // Filter clients based on current status filter
     let filteredClients = allClients;

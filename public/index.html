@@ -300,6 +300,21 @@
             box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
         }
 
+        .filter-count {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 2px 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .filter-pill:not(.active) .filter-count {
+            background: var(--border-color);
+            color: var(--text-tertiary);
+        }
+
         /* ====================  CARD GRID ==================== */
         .grid-container {
             max-width: 1600px;
@@ -1836,15 +1851,15 @@
                     <input type="text" placeholder="Search clients..." id="searchInput" onkeyup="filterCards()">
                 </div>
                 <div class="filter-pills">
-                    <button class="filter-pill active" data-filter="all" onclick="filterByStatus('all', this)">All Clients</button>
-                    <button class="filter-pill" data-filter="new-request" onclick="filterByStatus('new-request', this)">New Request</button>
-                    <button class="filter-pill" data-filter="signing" onclick="filterByStatus('signing', this)">Signing</button>
-                    <button class="filter-pill" data-filter="client-setup" onclick="filterByStatus('client-setup', this)">Client Setup</button>
-                    <button class="filter-pill" data-filter="setup-complete" onclick="filterByStatus('setup-complete', this)">Setup Complete</button>
-                    <button class="filter-pill" data-filter="inbound" onclick="filterByStatus('inbound', this)">Inbound</button>
-                    <button class="filter-pill" data-filter="fulfilling" onclick="filterByStatus('fulfilling', this)">Fulfilling</button>
-                    <button class="filter-pill" data-filter="complete" onclick="filterByStatus('complete', this)">Complete</button>
-                    <button class="filter-pill" data-filter="not-pursuing" onclick="filterByStatus('not-pursuing', this)">Not Pursuing</button>
+                    <button class="filter-pill active" data-filter="all" onclick="filterByStatus('all', this)">All Clients <span class="filter-count"></span></button>
+                    <button class="filter-pill" data-filter="new-request" onclick="filterByStatus('new-request', this)">New Request <span class="filter-count"></span></button>
+                    <button class="filter-pill" data-filter="signing" onclick="filterByStatus('signing', this)">Signing <span class="filter-count"></span></button>
+                    <button class="filter-pill" data-filter="client-setup" onclick="filterByStatus('client-setup', this)">Client Setup <span class="filter-count"></span></button>
+                    <button class="filter-pill" data-filter="setup-complete" onclick="filterByStatus('setup-complete', this)">Setup Complete <span class="filter-count"></span></button>
+                    <button class="filter-pill" data-filter="inbound" onclick="filterByStatus('inbound', this)">Inbound <span class="filter-count"></span></button>
+                    <button class="filter-pill" data-filter="fulfilling" onclick="filterByStatus('fulfilling', this)">Fulfilling <span class="filter-count"></span></button>
+                    <button class="filter-pill" data-filter="complete" onclick="filterByStatus('complete', this)">Complete <span class="filter-count"></span></button>
+                    <button class="filter-pill" data-filter="not-pursuing" onclick="filterByStatus('not-pursuing', this)">Not Pursuing <span class="filter-count"></span></button>
                 </div>
             </div>
         </div>
