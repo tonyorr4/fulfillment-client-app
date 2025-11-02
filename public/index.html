@@ -1146,82 +1146,128 @@
         }
 
         .attachment-list {
-            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
             padding: 0;
             margin: 0;
         }
 
-        .attachment-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
+        .attachment-preview-box {
+            position: relative;
             background: var(--bg-card);
-            border: 1px solid var(--border-color);
+            border: 2px solid var(--border-color);
             border-radius: 8px;
-            margin-bottom: 8px;
+            overflow: hidden;
             transition: all 0.2s;
+            cursor: pointer;
         }
 
-        .attachment-item:hover {
-            background: var(--bg-tertiary);
+        .attachment-preview-box:hover {
             border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
         }
 
-        .attachment-icon {
-            width: 36px;
-            height: 36px;
+        .attachment-preview-image {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            overflow: hidden;
+            background: var(--bg-tertiary);
+        }
+
+        .attachment-preview-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .attachment-preview-icon {
+            position: relative;
+            width: 100%;
+            height: 150px;
             display: flex;
             align-items: center;
             justify-content: center;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 6px;
+        }
+
+        .attachment-preview-icon-wrapper {
+            font-size: 48px;
             color: white;
-            font-size: 16px;
         }
 
-        .attachment-info {
-            flex: 1;
+        .attachment-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
         }
 
-        .attachment-name {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-primary);
-            margin-bottom: 4px;
+        .attachment-preview-box:hover .attachment-overlay {
+            opacity: 1;
         }
 
-        .attachment-meta {
-            font-size: 12px;
-            color: var(--text-tertiary);
-        }
-
-        .attachment-actions {
+        .attachment-overlay-actions {
             display: flex;
             gap: 8px;
         }
 
-        .attachment-btn {
-            padding: 6px 12px;
-            background: none;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            color: var(--text-secondary);
-            font-size: 12px;
+        .attachment-overlay-btn {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: none;
+            border-radius: 50%;
+            color: #667eea;
+            font-size: 16px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: all 0.2s;
         }
 
-        .attachment-btn:hover {
-            background: var(--hover-bg);
-            border-color: #667eea;
-            color: var(--text-primary);
+        .attachment-overlay-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
-        .attachment-btn.delete:hover {
-            background: #fee;
-            border-color: #e74c3c;
+        .attachment-overlay-btn.delete {
             color: #e74c3c;
+        }
+
+        .attachment-overlay-btn.delete:hover {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .attachment-preview-info {
+            padding: 8px;
+            background: var(--bg-card);
+        }
+
+        .attachment-preview-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .attachment-preview-size {
+            font-size: 11px;
+            color: var(--text-tertiary);
         }
 
         /* Subtasks */
@@ -2187,9 +2233,9 @@
                                     </button>
                                     <span class="file-hint">Max 10MB - Images, PDFs, Documents, Archives</span>
                                 </div>
-                                <ul class="attachment-list">
+                                <div class="attachment-list">
                                     <!-- Attachments loaded dynamically -->
-                                </ul>
+                                </div>
                             </div>
                         </div>
                     </div>

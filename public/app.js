@@ -1519,8 +1519,8 @@ function loadAttachmentsIntoModal(attachments) {
     }
 
     attachments.forEach(attachment => {
-        const li = document.createElement('li');
-        li.className = 'attachment-item';
+        const div = document.createElement('div');
+        div.className = 'attachment-preview-box';
 
         // Get file icon based on type
         const icon = getFileIcon(attachment.file_type);
@@ -1528,36 +1528,62 @@ function loadAttachmentsIntoModal(attachments) {
         // Format file size
         const fileSize = formatFileSize(attachment.file_size);
 
-        // Format date
-        const uploadDate = new Date(attachment.created_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
-
         const canDelete = currentUser && (attachment.uploaded_by === currentUser.id || currentUser.role === 'Admin');
 
-        li.innerHTML = `
-            <div class="attachment-icon">
-                <i class="fas fa-${icon}"></i>
-            </div>
-            <div class="attachment-info">
-                <div class="attachment-name">${escapeHtml(attachment.original_name)}</div>
-                <div class="attachment-meta">${fileSize} • Uploaded by ${escapeHtml(attachment.uploaded_by_name || 'Unknown')} on ${uploadDate}</div>
-            </div>
-            <div class="attachment-actions">
-                <button class="attachment-btn" onclick="downloadAttachment(${attachment.id}, '${escapeHtml(attachment.original_name)}')">
-                    <i class="fas fa-download"></i> Download
-                </button>
-                ${canDelete ? `
-                    <button class="attachment-btn delete" onclick="deleteAttachment(${attachment.id})">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                ` : ''}
-            </div>
-        `;
+        // Check if it's an image to show thumbnail
+        const isImage = attachment.file_type && attachment.file_type.startsWith('image/');
 
-        attachmentList.appendChild(li);
+        if (isImage) {
+            // Show image thumbnail
+            div.innerHTML = `
+                <div class="attachment-preview-image">
+                    <img src="/api/attachments/${attachment.id}/download" alt="${escapeHtml(attachment.original_name)}">
+                    <div class="attachment-overlay">
+                        <div class="attachment-overlay-actions">
+                            <button class="attachment-overlay-btn" onclick="downloadAttachment(${attachment.id}, '${escapeHtml(attachment.original_name).replace(/'/g, "\\'")}')">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            ${canDelete ? `
+                                <button class="attachment-overlay-btn delete" onclick="deleteAttachment(${attachment.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="attachment-preview-info">
+                    <div class="attachment-preview-name">${escapeHtml(attachment.original_name)}</div>
+                    <div class="attachment-preview-size">${fileSize}</div>
+                </div>
+            `;
+        } else {
+            // Show icon preview for non-images
+            div.innerHTML = `
+                <div class="attachment-preview-icon">
+                    <div class="attachment-preview-icon-wrapper">
+                        <i class="fas fa-${icon}"></i>
+                    </div>
+                    <div class="attachment-overlay">
+                        <div class="attachment-overlay-actions">
+                            <button class="attachment-overlay-btn" onclick="downloadAttachment(${attachment.id}, '${escapeHtml(attachment.original_name).replace(/'/g, "\\'")}')">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            ${canDelete ? `
+                                <button class="attachment-overlay-btn delete" onclick="deleteAttachment(${attachment.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="attachment-preview-info">
+                    <div class="attachment-preview-name">${escapeHtml(attachment.original_name)}</div>
+                    <div class="attachment-preview-size">${fileSize}</div>
+                </div>
+            `;
+        }
+
+        attachmentList.appendChild(div);
     });
 }
 
