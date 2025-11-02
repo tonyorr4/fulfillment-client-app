@@ -871,6 +871,12 @@ async function addSubtask() {
     }
 }
 
+// Global state for comment threads
+let commentThreadState = {
+    repliesByParent: {},
+    collapsed: new Set() // Set of collapsed comment IDs
+};
+
 // Load comments into modal (with threading support - unlimited nesting)
 function loadCommentsIntoModal(comments) {
     try {
@@ -891,13 +897,13 @@ function loadCommentsIntoModal(comments) {
         }
 
         // Build a map of replies by parent ID (for all levels)
-        const repliesByParent = {};
+        commentThreadState.repliesByParent = {};
         comments.forEach(comment => {
             if (comment.parent_comment_id) {
-                if (!repliesByParent[comment.parent_comment_id]) {
-                    repliesByParent[comment.parent_comment_id] = [];
+                if (!commentThreadState.repliesByParent[comment.parent_comment_id]) {
+                    commentThreadState.repliesByParent[comment.parent_comment_id] = [];
                 }
-                repliesByParent[comment.parent_comment_id].push(comment);
+                commentThreadState.repliesByParent[comment.parent_comment_id].push(comment);
             }
         });
 
@@ -906,7 +912,7 @@ function loadCommentsIntoModal(comments) {
 
         // Render parent comments and their replies recursively
         parentComments.forEach(comment => {
-            renderCommentThread(comment, commentBox, 0, repliesByParent);
+            renderCommentThread(comment, commentBox, 0);
         });
     } catch (error) {
         console.error('Error loading comments:', error);
@@ -914,19 +920,25 @@ function loadCommentsIntoModal(comments) {
 }
 
 // Recursively render a comment and all its replies
-function renderCommentThread(comment, commentBox, depth, repliesByParent) {
-    // Render this comment
-    renderComment(comment, commentBox, depth);
+function renderCommentThread(comment, commentBox, depth) {
+    // Check if this comment has replies
+    const replies = commentThreadState.repliesByParent[comment.id] || [];
+    const hasReplies = replies.length > 0;
 
-    // Recursively render all replies to this comment
-    const replies = repliesByParent[comment.id] || [];
-    replies.forEach(reply => {
-        renderCommentThread(reply, commentBox, depth + 1, repliesByParent);
-    });
+    // Render this comment
+    renderComment(comment, commentBox, depth, hasReplies);
+
+    // Only render children if not collapsed
+    if (!commentThreadState.collapsed.has(comment.id)) {
+        // Recursively render all replies to this comment
+        replies.forEach(reply => {
+            renderCommentThread(reply, commentBox, depth + 1);
+        });
+    }
 }
 
 // Render a single comment
-function renderComment(comment, commentBox, depth) {
+function renderComment(comment, commentBox, depth, hasReplies) {
     const commentEl = document.createElement('div');
     commentEl.className = 'comment' + (depth > 0 ? ' comment-reply' : '');
     commentEl.dataset.commentId = comment.id;
@@ -940,12 +952,25 @@ function renderComment(comment, commentBox, depth) {
     // Calculate indentation based on depth
     const indentStyle = depth > 0 ? `style="margin-left: ${depth * 48}px;"` : '';
 
+    // Count total replies (recursively)
+    const replyCount = hasReplies ? countReplies(comment.id) : 0;
+    const isCollapsed = commentThreadState.collapsed.has(comment.id);
+
+    // Collapse/expand button if has replies
+    const collapseBtn = hasReplies ? `
+        <button class="comment-collapse-btn" onclick="toggleCommentThread(${comment.id})" title="${isCollapsed ? 'Expand' : 'Collapse'} thread">
+            <i class="fas fa-${isCollapsed ? 'plus' : 'minus'}-square"></i>
+            ${isCollapsed ? `<span class="reply-count">${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}</span>` : ''}
+        </button>
+    ` : '';
+
     commentEl.innerHTML = `
         <div class="comment-avatar">${initials}</div>
         <div class="comment-content" ${indentStyle}>
             <div class="comment-header">
                 <span class="comment-author">${comment.user_name}</span>
                 <span class="comment-time">${timeAgo} ${editedIndicator}</span>
+                ${collapseBtn}
             </div>
             <div class="comment-text" data-comment-id="${comment.id}">${highlightMentions(comment.comment_text)}</div>
             <div class="comment-actions">
@@ -962,6 +987,34 @@ function renderComment(comment, commentBox, depth) {
     `;
 
     commentBox.parentNode.insertBefore(commentEl, commentBox);
+}
+
+// Count all replies recursively
+function countReplies(commentId) {
+    const directReplies = commentThreadState.repliesByParent[commentId] || [];
+    let count = directReplies.length;
+
+    // Add nested replies
+    directReplies.forEach(reply => {
+        count += countReplies(reply.id);
+    });
+
+    return count;
+}
+
+// Toggle comment thread collapse/expand
+function toggleCommentThread(commentId) {
+    if (commentThreadState.collapsed.has(commentId)) {
+        commentThreadState.collapsed.delete(commentId);
+    } else {
+        commentThreadState.collapsed.add(commentId);
+    }
+
+    // Re-render comments
+    if (currentClientCard) {
+        const clientData = JSON.parse(currentClientCard.getAttribute('data-client-data'));
+        loadCommentsIntoModal(clientData.comments || []);
+    }
 }
 
 // ==================== MENTION AUTOCOMPLETE ====================
