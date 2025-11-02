@@ -871,7 +871,7 @@ async function addSubtask() {
     }
 }
 
-// Load comments into modal
+// Load comments into modal (with threading support)
 function loadCommentsIntoModal(comments) {
     try {
         // Find comments section - use simpler selector
@@ -890,29 +890,67 @@ function loadCommentsIntoModal(comments) {
             return;
         }
 
+        // Organize comments into threads (parent comments and their replies)
+        const parentComments = comments.filter(c => !c.parent_comment_id);
+        const repliesByParent = {};
+
         comments.forEach(comment => {
-            const commentEl = document.createElement('div');
-            commentEl.className = 'comment';
+            if (comment.parent_comment_id) {
+                if (!repliesByParent[comment.parent_comment_id]) {
+                    repliesByParent[comment.parent_comment_id] = [];
+                }
+                repliesByParent[comment.parent_comment_id].push(comment);
+            }
+        });
 
-            const initials = getInitials(comment.user_name);
-            const timeAgo = formatTimeAgo(new Date(comment.created_at));
+        // Render parent comments and their replies
+        parentComments.forEach(comment => {
+            renderComment(comment, commentBox, false);
 
-            commentEl.innerHTML = `
-                <div class="comment-avatar">${initials}</div>
-                <div class="comment-content">
-                    <div class="comment-header">
-                        <span class="comment-author">${comment.user_name}</span>
-                        <span class="comment-time">${timeAgo}</span>
-                    </div>
-                    <div class="comment-text">${highlightMentions(comment.comment_text)}</div>
-                </div>
-            `;
-
-            commentBox.parentNode.insertBefore(commentEl, commentBox);
+            // Render replies indented
+            const replies = repliesByParent[comment.id] || [];
+            replies.forEach(reply => {
+                renderComment(reply, commentBox, true);
+            });
         });
     } catch (error) {
         console.error('Error loading comments:', error);
     }
+}
+
+// Render a single comment
+function renderComment(comment, commentBox, isReply) {
+    const commentEl = document.createElement('div');
+    commentEl.className = 'comment' + (isReply ? ' comment-reply' : '');
+    commentEl.dataset.commentId = comment.id;
+
+    const initials = getInitials(comment.user_name);
+    const timeAgo = formatTimeAgo(new Date(comment.created_at));
+    const isOwnComment = currentUser && comment.user_id === currentUser.id;
+    const editedIndicator = comment.edited_at ? '<span class="edited-indicator">(edited)</span>' : '';
+
+    commentEl.innerHTML = `
+        <div class="comment-avatar">${initials}</div>
+        <div class="comment-content">
+            <div class="comment-header">
+                <span class="comment-author">${comment.user_name}</span>
+                <span class="comment-time">${timeAgo} ${editedIndicator}</span>
+            </div>
+            <div class="comment-text" data-comment-id="${comment.id}">${highlightMentions(comment.comment_text)}</div>
+            <div class="comment-actions">
+                <button class="comment-action-btn reply-btn" onclick="replyToComment(${comment.id}, '${escapeHtml(comment.user_name)}')">
+                    <i class="fas fa-reply"></i> Reply
+                </button>
+                ${isOwnComment ? `
+                    <button class="comment-action-btn edit-btn" onclick="editComment(${comment.id})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    commentBox.parentNode.insertBefore(commentEl, commentBox);
 }
 
 // ==================== MENTION AUTOCOMPLETE ====================
@@ -1165,7 +1203,85 @@ function parseMentions(text) {
     return mentionedUserIds;
 }
 
-// Add new comment
+// Comment state for reply and edit
+let commentState = {
+    replyToId: null,
+    replyToName: null,
+    editingCommentId: null
+};
+
+// Reply to comment
+function replyToComment(commentId, userName) {
+    commentState.replyToId = commentId;
+    commentState.replyToName = userName;
+    commentState.editingCommentId = null;
+
+    const textarea = document.querySelector('.comment-box textarea');
+    const commentBox = document.querySelector('.comment-box');
+
+    // Show reply indicator
+    const existingIndicator = document.querySelector('.reply-indicator');
+    if (existingIndicator) existingIndicator.remove();
+
+    const replyIndicator = document.createElement('div');
+    replyIndicator.className = 'reply-indicator';
+    replyIndicator.innerHTML = `
+        Replying to <strong>${escapeHtml(userName)}</strong>
+        <button class="cancel-reply-btn" onclick="cancelReply()">✕</button>
+    `;
+    commentBox.insertBefore(replyIndicator, textarea);
+
+    textarea.focus();
+}
+
+// Cancel reply
+function cancelReply() {
+    commentState.replyToId = null;
+    commentState.replyToName = null;
+
+    const replyIndicator = document.querySelector('.reply-indicator');
+    if (replyIndicator) replyIndicator.remove();
+}
+
+// Edit comment
+function editComment(commentId) {
+    commentState.editingCommentId = commentId;
+    commentState.replyToId = null;
+
+    const commentTextEl = document.querySelector(`.comment-text[data-comment-id="${commentId}"]`);
+    const currentText = commentTextEl.textContent.trim();
+
+    const textarea = document.querySelector('.comment-box textarea');
+    const commentBox = document.querySelector('.comment-box');
+
+    // Show edit indicator
+    const existingIndicator = document.querySelector('.edit-indicator');
+    if (existingIndicator) existingIndicator.remove();
+
+    const editIndicator = document.createElement('div');
+    editIndicator.className = 'edit-indicator';
+    editIndicator.innerHTML = `
+        Editing comment
+        <button class="cancel-edit-btn" onclick="cancelEdit()">✕</button>
+    `;
+    commentBox.insertBefore(editIndicator, textarea);
+
+    textarea.value = currentText;
+    textarea.focus();
+}
+
+// Cancel edit
+function cancelEdit() {
+    commentState.editingCommentId = null;
+
+    const textarea = document.querySelector('.comment-box textarea');
+    textarea.value = '';
+
+    const editIndicator = document.querySelector('.edit-indicator');
+    if (editIndicator) editIndicator.remove();
+}
+
+// Add new comment (or reply, or edit)
 async function addComment() {
     if (!currentClientCard) return;
 
@@ -1175,6 +1291,39 @@ async function addComment() {
 
     if (!commentText) {
         showToast('Please enter a comment', 'error');
+        return;
+    }
+
+    // If editing, call edit endpoint
+    if (commentState.editingCommentId) {
+        try {
+            const response = await fetch(`/api/comments/${commentState.editingCommentId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    commentText
+                })
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to edit comment');
+            }
+
+            textarea.value = '';
+            cancelEdit();
+            showToast('Comment edited', 'success');
+
+            // Reload client details
+            await openClientDetail(clientData.id);
+
+        } catch (error) {
+            console.error('Error editing comment:', error);
+            showToast(error.message || 'Failed to edit comment', 'error');
+        }
         return;
     }
 
@@ -1190,7 +1339,8 @@ async function addComment() {
             credentials: 'include',
             body: JSON.stringify({
                 commentText,
-                mentionedUsers
+                mentionedUsers,
+                parentCommentId: commentState.replyToId
             })
         });
 
@@ -1199,7 +1349,8 @@ async function addComment() {
         }
 
         textarea.value = '';
-        showToast('Comment added', 'success');
+        cancelReply();
+        showToast(commentState.replyToId ? 'Reply added' : 'Comment added', 'success');
 
         // Reload client details
         await openClientDetail(clientData.id);

@@ -19,6 +19,7 @@ const {
     toggleSubtaskCompletion,
     getCommentsByClientId,
     createComment,
+    updateComment,
     logActivity
 } = require('./database');
 const { triggerAutomations } = require('./automation-engine');
@@ -798,15 +799,16 @@ app.get('/api/clients/:id/comments', ensureAuthenticated, async (req, res) => {
     }
 });
 
-// Create new comment
+// Create new comment (or reply to existing comment)
 app.post('/api/clients/:id/comments', ensureAuthenticated, async (req, res) => {
     try {
-        const { commentText, mentionedUsers } = req.body;
+        const { commentText, mentionedUsers, parentCommentId } = req.body;
         const comment = await createComment(
             req.params.id,
             req.user.id,
             commentText,
-            mentionedUsers || []
+            mentionedUsers || [],
+            parentCommentId || null
         );
 
         // Log activity
@@ -881,6 +883,34 @@ app.post('/api/clients/:id/comments', ensureAuthenticated, async (req, res) => {
     } catch (error) {
         console.error('Error creating comment:', error);
         res.status(500).json({ error: 'Failed to create comment' });
+    }
+});
+
+// Edit comment (author only)
+app.patch('/api/comments/:commentId', ensureAuthenticated, async (req, res) => {
+    try {
+        const { commentText } = req.body;
+        const commentId = req.params.commentId;
+
+        // Update comment (function checks if user owns the comment)
+        const updatedComment = await updateComment(commentId, req.user.id, commentText);
+
+        // Return updated comment with user info
+        const result = await pool.query(`
+            SELECT c.*, u.name as user_name, u.email as user_email, u.picture as user_picture
+            FROM comments c
+            LEFT JOIN users u ON c.user_id = u.id
+            WHERE c.id = $1
+        `, [updatedComment.id]);
+
+        res.json({ success: true, comment: result.rows[0] });
+    } catch (error) {
+        console.error('Error editing comment:', error);
+        if (error.message.includes('permission')) {
+            res.status(403).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: 'Failed to edit comment' });
+        }
     }
 });
 

@@ -984,6 +984,85 @@
             text-decoration: underline;
         }
 
+        /* Threaded Comments */
+        .comment-reply {
+            margin-left: 48px;
+            padding-left: 16px;
+            border-left: 2px solid var(--border-light);
+        }
+
+        .comment-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .comment-action-btn {
+            background: none;
+            border: none;
+            color: var(--text-tertiary);
+            font-size: 12px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .comment-action-btn:hover {
+            background: var(--hover-bg);
+            color: var(--text-primary);
+        }
+
+        .comment-action-btn i {
+            font-size: 11px;
+        }
+
+        .edited-indicator {
+            color: var(--text-tertiary);
+            font-size: 11px;
+            font-style: italic;
+        }
+
+        .reply-indicator,
+        .edit-indicator {
+            background: #e3f2fd;
+            border-left: 3px solid #2196f3;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #1976d2;
+        }
+
+        .edit-indicator {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+            color: #f57c00;
+        }
+
+        .cancel-reply-btn,
+        .cancel-edit-btn {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 0 4px;
+            font-size: 16px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .cancel-reply-btn:hover,
+        .cancel-edit-btn:hover {
+            opacity: 1;
+        }
+
         /* Subtasks */
         .subtask-list {
             list-style: none;

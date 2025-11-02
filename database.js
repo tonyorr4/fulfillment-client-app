@@ -284,25 +284,44 @@ async function toggleSubtaskCompletion(subtaskId) {
     return result.rows[0];
 }
 
-// Helper function to get comments for a client
+// Helper function to get comments for a client (with threading support)
 async function getCommentsByClientId(clientId) {
     const result = await pool.query(`
         SELECT c.*, u.name as user_name, u.email as user_email, u.picture as user_picture
         FROM comments c
         LEFT JOIN users u ON c.user_id = u.id
         WHERE c.client_id = $1
-        ORDER BY c.created_at ASC
+        ORDER BY
+            COALESCE(c.parent_comment_id, c.id) ASC,  -- Group by parent
+            c.created_at ASC                          -- Then by creation time
     `, [clientId]);
     return result.rows;
 }
 
-// Helper function to create comment
-async function createComment(clientId, userId, commentText, mentionedUsers = []) {
+// Helper function to create comment (with threading support)
+async function createComment(clientId, userId, commentText, mentionedUsers = [], parentCommentId = null) {
     const result = await pool.query(`
-        INSERT INTO comments (client_id, user_id, comment_text, mentioned_users)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO comments (client_id, user_id, comment_text, mentioned_users, parent_comment_id)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING *
-    `, [clientId, userId, commentText, mentionedUsers]);
+    `, [clientId, userId, commentText, mentionedUsers, parentCommentId]);
+
+    return result.rows[0];
+}
+
+// Helper function to edit comment
+async function updateComment(commentId, userId, commentText) {
+    // Only allow editing your own comments
+    const result = await pool.query(`
+        UPDATE comments
+        SET comment_text = $1, edited_at = CURRENT_TIMESTAMP
+        WHERE id = $2 AND user_id = $3
+        RETURNING *
+    `, [commentText, commentId, userId]);
+
+    if (result.rows.length === 0) {
+        throw new Error('Comment not found or you do not have permission to edit it');
+    }
 
     return result.rows[0];
 }
@@ -389,6 +408,7 @@ module.exports = {
     toggleSubtaskCompletion,
     getCommentsByClientId,
     createComment,
+    updateComment,
     logActivity,
     createAccessRequest,
     getAccessRequestStatus
