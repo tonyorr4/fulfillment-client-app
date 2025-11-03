@@ -2133,7 +2133,9 @@ async function saveClientDetails() {
 let reportCharts = {
     statusChart: null,
     clientTypeChart: null,
-    trendChart: null
+    trendChart: null,
+    approvalRateChart: null,
+    autoApprovalRateChart: null
 };
 
 // Load reports data and render charts
@@ -2162,9 +2164,48 @@ async function loadReports() {
         renderClientTypeChart(data.clientTypes);
         renderTrendChart(data.newClientsTrend);
 
+        // Load monthly summary
+        await loadMonthlySummary();
+
     } catch (error) {
         console.error('Error loading reports:', error);
         showToast('Failed to load reports', 'error');
+    }
+}
+
+// Load monthly summary data
+async function loadMonthlySummary() {
+    try {
+        const response = await fetch('/api/reports/monthly-summary', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch monthly summary');
+        }
+
+        const result = await response.json();
+        const data = result.data;
+
+        // Update KPI cards
+        document.getElementById('kpi-month-added').textContent = data.clientsAddedThisMonth;
+        document.getElementById('kpi-approval-rate').textContent = data.currentApprovalRate + '%';
+        document.getElementById('kpi-auto-approval-rate').textContent = data.currentAutoApprovalRate + '%';
+
+        // Update month-over-month change
+        const changeEl = document.getElementById('kpi-month-change');
+        const change = data.clientsAddedChange;
+        const changeText = change > 0 ? `+${change}%` : `${change}%`;
+        const changeColor = change > 0 ? '#4CAF50' : (change < 0 ? '#F44336' : '#888');
+        changeEl.innerHTML = `<span style="color: ${changeColor};">${changeText}</span> <span style="color: #888;">vs last month</span>`;
+
+        // Render trend charts
+        renderApprovalRateChart(data.approvalRateTrend);
+        renderAutoApprovalRateChart(data.autoApprovalRateTrend);
+
+    } catch (error) {
+        console.error('Error loading monthly summary:', error);
+        showToast('Failed to load monthly summary', 'error');
     }
 }
 
@@ -2371,6 +2412,162 @@ function renderTrendChart(trendData) {
                     ticks: {
                         maxRotation: 45,
                         minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Render approval rate trend chart
+function renderApprovalRateChart(trendData) {
+    const ctx = document.getElementById('approvalRateChart');
+    if (!ctx) return;
+
+    // Destroy existing chart if it exists
+    if (reportCharts.approvalRateChart) {
+        reportCharts.approvalRateChart.destroy();
+    }
+
+    // Format months and rates
+    const labels = trendData.map(item => {
+        const date = new Date(item.month);
+        return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    });
+    const rates = trendData.map(item => parseFloat(item.rate));
+
+    reportCharts.approvalRateChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Approval Rate (%)',
+                data: rates,
+                borderColor: '#4CAF50',
+                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#4CAF50',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: function(context) {
+                            return `Approval Rate: ${context.parsed.y}%`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Render auto-approval rate trend chart
+function renderAutoApprovalRateChart(trendData) {
+    const ctx = document.getElementById('autoApprovalRateChart');
+    if (!ctx) return;
+
+    // Destroy existing chart if it exists
+    if (reportCharts.autoApprovalRateChart) {
+        reportCharts.autoApprovalRateChart.destroy();
+    }
+
+    // Format months and rates
+    const labels = trendData.map(item => {
+        const date = new Date(item.month);
+        return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    });
+    const rates = trendData.map(item => parseFloat(item.rate));
+
+    reportCharts.autoApprovalRateChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Auto-Approval Rate (%)',
+                data: rates,
+                borderColor: '#2196F3',
+                backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#2196F3',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: function(context) {
+                            return `Auto-Approval Rate: ${context.parsed.y}%`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
                     }
                 }
             }

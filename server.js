@@ -1245,6 +1245,134 @@ app.get('/api/reports/pipeline-overview', ensureAuthenticated, async (req, res) 
     }
 });
 
+// Get monthly summary metrics
+app.get('/api/reports/monthly-summary', ensureAuthenticated, async (req, res) => {
+    try {
+        // 1. Total clients added this month vs previous month
+        const currentMonth = await pool.query(`
+            SELECT COUNT(*) as count
+            FROM clients
+            WHERE created_at >= DATE_TRUNC('month', NOW())
+        `);
+
+        const previousMonth = await pool.query(`
+            SELECT COUNT(*) as count
+            FROM clients
+            WHERE created_at >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')
+              AND created_at < DATE_TRUNC('month', NOW())
+        `);
+
+        const currentMonthCount = parseInt(currentMonth.rows[0].count);
+        const previousMonthCount = parseInt(previousMonth.rows[0].count);
+        const clientsAddedChange = previousMonthCount > 0
+            ? ((currentMonthCount - previousMonthCount) / previousMonthCount * 100).toFixed(1)
+            : 0;
+
+        // 2. Clients added by month (last 6 months for trend)
+        const clientsByMonth = await pool.query(`
+            SELECT
+                DATE_TRUNC('month', created_at) as month,
+                COUNT(*) as count
+            FROM clients
+            WHERE created_at >= NOW() - INTERVAL '6 months'
+            GROUP BY DATE_TRUNC('month', created_at)
+            ORDER BY month ASC
+        `);
+
+        // 3. Approval rate trend (last 6 months)
+        // Approval rate = (approved + in-progress + ready-for-inbound + receiving + complete) / total
+        const approvalRateTrend = await pool.query(`
+            SELECT
+                DATE_TRUNC('month', created_at) as month,
+                COUNT(*) as total,
+                SUM(CASE
+                    WHEN status NOT IN ('new-request', 'in-discussion', 'not-pursuing')
+                    THEN 1 ELSE 0
+                END) as approved_count
+            FROM clients
+            WHERE created_at >= NOW() - INTERVAL '6 months'
+            GROUP BY DATE_TRUNC('month', created_at)
+            ORDER BY month ASC
+        `);
+
+        // Calculate approval percentages
+        const approvalRates = approvalRateTrend.rows.map(row => ({
+            month: row.month,
+            total: parseInt(row.total),
+            approved: parseInt(row.approved_count),
+            rate: row.total > 0 ? ((parseInt(row.approved_count) / parseInt(row.total)) * 100).toFixed(1) : 0
+        }));
+
+        // 4. Auto-approval rate trend (last 6 months)
+        const autoApprovalTrend = await pool.query(`
+            SELECT
+                DATE_TRUNC('month', created_at) as month,
+                COUNT(*) as total,
+                SUM(CASE WHEN auto_approved = true THEN 1 ELSE 0 END) as auto_approved_count
+            FROM clients
+            WHERE created_at >= NOW() - INTERVAL '6 months'
+              AND status NOT IN ('new-request', 'in-discussion', 'not-pursuing')
+            GROUP BY DATE_TRUNC('month', created_at)
+            ORDER BY month ASC
+        `);
+
+        // Calculate auto-approval percentages
+        const autoApprovalRates = autoApprovalTrend.rows.map(row => ({
+            month: row.month,
+            total: parseInt(row.total),
+            autoApproved: parseInt(row.auto_approved_count),
+            rate: row.total > 0 ? ((parseInt(row.auto_approved_count) / parseInt(row.total)) * 100).toFixed(1) : 0
+        }));
+
+        // 5. Current month approval rate
+        const currentMonthApproval = await pool.query(`
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE
+                    WHEN status NOT IN ('new-request', 'in-discussion', 'not-pursuing')
+                    THEN 1 ELSE 0
+                END) as approved_count
+            FROM clients
+            WHERE created_at >= DATE_TRUNC('month', NOW())
+        `);
+
+        const currentApprovalRate = currentMonthApproval.rows[0].total > 0
+            ? ((parseInt(currentMonthApproval.rows[0].approved_count) / parseInt(currentMonthApproval.rows[0].total)) * 100).toFixed(1)
+            : 0;
+
+        // 6. Current month auto-approval rate
+        const currentMonthAutoApproval = await pool.query(`
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN auto_approved = true THEN 1 ELSE 0 END) as auto_approved_count
+            FROM clients
+            WHERE created_at >= DATE_TRUNC('month', NOW())
+              AND status NOT IN ('new-request', 'in-discussion', 'not-pursuing')
+        `);
+
+        const currentAutoApprovalRate = currentMonthAutoApproval.rows[0].total > 0
+            ? ((parseInt(currentMonthAutoApproval.rows[0].auto_approved_count) / parseInt(currentMonthAutoApproval.rows[0].total)) * 100).toFixed(1)
+            : 0;
+
+        res.json({
+            success: true,
+            data: {
+                clientsAddedThisMonth: currentMonthCount,
+                clientsAddedLastMonth: previousMonthCount,
+                clientsAddedChange: parseFloat(clientsAddedChange),
+                currentApprovalRate: parseFloat(currentApprovalRate),
+                currentAutoApprovalRate: parseFloat(currentAutoApprovalRate),
+                clientsByMonth: clientsByMonth.rows,
+                approvalRateTrend: approvalRates,
+                autoApprovalRateTrend: autoApprovalRates
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching monthly summary:', error);
+        res.status(500).json({ error: 'Failed to fetch monthly summary' });
+    }
+});
+
 // ==================== AUTOMATION MANAGEMENT ROUTES ====================
 
 // Get all automations
