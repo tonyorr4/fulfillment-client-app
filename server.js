@@ -1153,6 +1153,98 @@ app.get('/api/export', ensureAuthenticated, checkAutoAdmin, async (req, res) => 
     }
 });
 
+// ==================== REPORTING ROUTES ====================
+
+// Get pipeline overview metrics
+app.get('/api/reports/pipeline-overview', ensureAuthenticated, async (req, res) => {
+    try {
+        // 1. Total clients by status (Kanban column counts)
+        const statusCounts = await pool.query(`
+            SELECT status, COUNT(*) as count
+            FROM clients
+            GROUP BY status
+            ORDER BY
+                CASE status
+                    WHEN 'new-request' THEN 1
+                    WHEN 'in-discussion' THEN 2
+                    WHEN 'approved' THEN 3
+                    WHEN 'in-progress' THEN 4
+                    WHEN 'ready-for-inbound' THEN 5
+                    WHEN 'receiving' THEN 6
+                    WHEN 'complete' THEN 7
+                    ELSE 8
+                END
+        `);
+
+        // 2. Clients added this week
+        const clientsThisWeek = await pool.query(`
+            SELECT COUNT(*) as count
+            FROM clients
+            WHERE created_at >= NOW() - INTERVAL '7 days'
+        `);
+
+        // 3. Clients added this month
+        const clientsThisMonth = await pool.query(`
+            SELECT COUNT(*) as count
+            FROM clients
+            WHERE created_at >= DATE_TRUNC('month', NOW())
+        `);
+
+        // 4. Current backlog size (New Request + In Discussion)
+        const backlogSize = await pool.query(`
+            SELECT COUNT(*) as count
+            FROM clients
+            WHERE status IN ('new-request', 'in-discussion')
+        `);
+
+        // 5. Active clients (In Progress → Ready for Inbound)
+        const activeClients = await pool.query(`
+            SELECT COUNT(*) as count
+            FROM clients
+            WHERE status IN ('in-progress', 'ready-for-inbound', 'receiving')
+        `);
+
+        // 6. Client type distribution
+        const clientTypes = await pool.query(`
+            SELECT client_type, COUNT(*) as count
+            FROM clients
+            GROUP BY client_type
+            ORDER BY count DESC
+        `);
+
+        // 7. New clients trend (last 30 days)
+        const newClientsTrend = await pool.query(`
+            SELECT DATE(created_at) as date, COUNT(*) as count
+            FROM clients
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        `);
+
+        // 8. Total clients
+        const totalClients = await pool.query(`
+            SELECT COUNT(*) as count FROM clients
+        `);
+
+        res.json({
+            success: true,
+            data: {
+                statusCounts: statusCounts.rows,
+                clientsThisWeek: clientsThisWeek.rows[0].count,
+                clientsThisMonth: clientsThisMonth.rows[0].count,
+                backlogSize: backlogSize.rows[0].count,
+                activeClients: activeClients.rows[0].count,
+                clientTypes: clientTypes.rows,
+                newClientsTrend: newClientsTrend.rows,
+                totalClients: totalClients.rows[0].count
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching pipeline overview:', error);
+        res.status(500).json({ error: 'Failed to fetch pipeline overview' });
+    }
+});
+
 // ==================== AUTOMATION MANAGEMENT ROUTES ====================
 
 // Get all automations

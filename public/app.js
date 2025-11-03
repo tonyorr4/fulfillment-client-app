@@ -2128,6 +2128,256 @@ async function saveClientDetails() {
     }
 }
 
+// ==================== REPORTING ====================
+
+let reportCharts = {
+    statusChart: null,
+    clientTypeChart: null,
+    trendChart: null
+};
+
+// Load reports data and render charts
+async function loadReports() {
+    try {
+        const response = await fetch('/api/reports/pipeline-overview', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch reports');
+        }
+
+        const result = await response.json();
+        const data = result.data;
+
+        // Update KPI cards
+        document.getElementById('kpi-total-clients').textContent = data.totalClients;
+        document.getElementById('kpi-this-week').textContent = data.clientsThisWeek;
+        document.getElementById('kpi-this-month').textContent = data.clientsThisMonth;
+        document.getElementById('kpi-backlog').textContent = data.backlogSize;
+        document.getElementById('kpi-active').textContent = data.activeClients;
+
+        // Render charts
+        renderStatusChart(data.statusCounts);
+        renderClientTypeChart(data.clientTypes);
+        renderTrendChart(data.newClientsTrend);
+
+    } catch (error) {
+        console.error('Error loading reports:', error);
+        showToast('Failed to load reports', 'error');
+    }
+}
+
+// Render status distribution bar chart
+function renderStatusChart(statusData) {
+    const ctx = document.getElementById('statusChart');
+    if (!ctx) return;
+
+    // Destroy existing chart if it exists
+    if (reportCharts.statusChart) {
+        reportCharts.statusChart.destroy();
+    }
+
+    // Status labels mapping
+    const statusLabels = {
+        'new-request': 'New Request',
+        'in-discussion': 'In Discussion',
+        'approved': 'Approved',
+        'in-progress': 'In Progress',
+        'ready-for-inbound': 'Ready for Inbound',
+        'receiving': 'Receiving',
+        'complete': 'Complete'
+    };
+
+    // Status colors
+    const statusColors = {
+        'new-request': '#2196F3',
+        'in-discussion': '#FF9800',
+        'approved': '#4CAF50',
+        'in-progress': '#9C27B0',
+        'ready-for-inbound': '#00BCD4',
+        'receiving': '#3F51B5',
+        'complete': '#8BC34A'
+    };
+
+    const labels = statusData.map(item => statusLabels[item.status] || item.status);
+    const counts = statusData.map(item => parseInt(item.count));
+    const colors = statusData.map(item => statusColors[item.status] || '#666');
+
+    reportCharts.statusChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Number of Clients',
+                data: counts,
+                backgroundColor: colors,
+                borderColor: colors,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Render client type pie chart
+function renderClientTypeChart(clientTypeData) {
+    const ctx = document.getElementById('clientTypeChart');
+    if (!ctx) return;
+
+    // Destroy existing chart if it exists
+    if (reportCharts.clientTypeChart) {
+        reportCharts.clientTypeChart.destroy();
+    }
+
+    const labels = clientTypeData.map(item => item.client_type);
+    const counts = clientTypeData.map(item => parseInt(item.count));
+    const colors = ['#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#F44336'];
+
+    reportCharts.clientTypeChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: counts,
+                backgroundColor: colors.slice(0, labels.length),
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: { size: 13 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Render trend line chart
+function renderTrendChart(trendData) {
+    const ctx = document.getElementById('trendChart');
+    if (!ctx) return;
+
+    // Destroy existing chart if it exists
+    if (reportCharts.trendChart) {
+        reportCharts.trendChart.destroy();
+    }
+
+    // Format dates and counts
+    const labels = trendData.map(item => {
+        const date = new Date(item.date);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+    const counts = trendData.map(item => parseInt(item.count));
+
+    reportCharts.trendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'New Clients',
+                data: counts,
+                borderColor: '#2196F3',
+                backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#2196F3',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+}
+
 // ==================== AUTOMATIONS ====================
 
 let allAutomations = [];
@@ -2143,6 +2393,9 @@ function switchTab(tabName) {
 
     if (tabName === 'board') {
         document.getElementById('board-tab').classList.add('active');
+    } else if (tabName === 'reports') {
+        document.getElementById('reports-tab').classList.add('active');
+        loadReports(); // Load reports when tab is opened
     } else if (tabName === 'automations') {
         document.getElementById('automations-tab-content').classList.add('active');
         loadAutomations(); // Load automations when tab is opened
