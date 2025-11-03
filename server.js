@@ -1197,11 +1197,11 @@ app.get('/api/reports/pipeline-overview', ensureAuthenticated, async (req, res) 
             WHERE status IN ('new-request', 'in-discussion')
         `);
 
-        // 5. Active clients (In Progress → Ready for Inbound)
+        // 5. Active clients (Fulfilling status only)
         const activeClients = await pool.query(`
             SELECT COUNT(*) as count
             FROM clients
-            WHERE status IN ('in-progress', 'ready-for-inbound', 'receiving')
+            WHERE status = 'fulfilling'
         `);
 
         // 6. Client type distribution

@@ -44,7 +44,7 @@ Add a comprehensive Reporting tab to provide insights into fulfillment operation
 - [ ] Clients completed this week/month
 - [ ] Average time to completion
 - [x] Current backlog size (New Request + In Discussion)
-- [x] Active clients (In Progress → Ready for Inbound)
+- [x] Fulfilling clients (Clients in "Fulfilling" status)
 
 **Visualization:**
 - [x] Bar chart showing client distribution across statuses ✅ COMPLETED
