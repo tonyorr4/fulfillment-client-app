@@ -590,8 +590,10 @@ app.patch('/api/clients/:id/approval', ensureAuthenticated, blockSalesRole, asyn
 app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, res) => {
     try {
         const {
+            client_id,
             client_name,
             client_email,
+            est_inbound_date,
             client_type,
             avg_orders,
             num_skus,
@@ -611,6 +613,10 @@ app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, r
         const values = [];
         let paramCount = 1;
 
+        if (client_id !== undefined) {
+            updates.push(`client_id = $${paramCount++}`);
+            values.push(client_id || null);
+        }
         if (client_name !== undefined) {
             updates.push(`client_name = $${paramCount++}`);
             values.push(client_name);
@@ -618,6 +624,10 @@ app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, r
         if (client_email !== undefined) {
             updates.push(`client_email = $${paramCount++}`);
             values.push(client_email || null);
+        }
+        if (est_inbound_date !== undefined) {
+            updates.push(`est_inbound_date = $${paramCount++}`);
+            values.push(est_inbound_date || null);
         }
         if (client_type !== undefined) {
             updates.push(`client_type = $${paramCount++}`);
