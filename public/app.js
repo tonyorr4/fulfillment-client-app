@@ -2003,6 +2003,8 @@ function cancelEditMode() {
 // Make fields editable
 function makeFieldsEditable() {
     const editableFields = [
+        { id: 'detailClientId', key: 'client_id', type: 'input', inputType: 'text' },
+        { id: 'detailInboundDate', key: 'est_inbound_date', type: 'input', inputType: 'date' },
         { id: 'detailEmail', key: 'client_email', type: 'input', inputType: 'email' },
         { id: 'detailClientType', key: 'client_type', type: 'select', options: ['eFulfillment', '3PL', 'Hybrid'] },
         { id: 'detailAvgOrders', key: 'avg_orders', type: 'select', options: ['<100', '100-500', '500-1000', '1000-2500', '2500-5000', '5000+'] },
@@ -2018,7 +2020,19 @@ function makeFieldsEditable() {
         const el = document.getElementById(field.id);
         if (!el) return;
 
-        const currentValue = el.textContent;
+        let currentValue = el.textContent;
+
+        // Special handling for date fields - convert to YYYY-MM-DD format
+        if (field.inputType === 'date' && originalClientData && originalClientData[field.key]) {
+            const dateObj = new Date(originalClientData[field.key]);
+            if (!isNaN(dateObj.getTime())) {
+                // Format as YYYY-MM-DD for date input
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                currentValue = `${year}-${month}-${day}`;
+            }
+        }
 
         if (field.type === 'input') {
             el.innerHTML = `<input type="${field.inputType || 'text'}" class="detail-field-input" value="${escapeHtml(currentValue)}" data-field="${field.key}">`;
