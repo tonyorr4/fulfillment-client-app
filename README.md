@@ -4,6 +4,10 @@
 
 A Jira-like Kanban board application for managing fulfillment clients with automated workflows, subtasks, and team collaboration.
 
+> **📦 Documentation Update (Nov 2025):** Old TODO files and phase markers have been archived.
+> - **Current Docs:** See this README and `RAILWAY-SETUP-CHECKLIST.md`
+> - **Archived:** Old TODO files available in `../docs/archive/fulfillment_client_app/`
+
 ---
 
 ## 🚨 CRITICAL: Shared Sincro Database Required
@@ -223,9 +227,42 @@ Clients are automatically approved if ANY of these conditions are met:
 
 ## Backup & Recovery
 
-- **Automatic**: PostgreSQL daily backups by Railway
-- **Manual Export**: `/api/export` endpoint (admin only)
-- **Restore**: SQL import via Railway dashboard
+✅ **Your data is safe!** The Railway PostgreSQL database persists across all deployments and restarts.
+
+### Available Backup Methods
+
+1. **Railway Automatic Backups** (Platform Level)
+   - Daily automatic snapshots
+   - Managed in Railway dashboard
+   - Point-in-time recovery available
+
+2. **JSON Application Backups** (Recommended)
+   ```bash
+   npm run backup              # Create JSON backup
+   npm run restore             # List & restore backups
+   ```
+   - Backs up all clients, comments, subtasks, activities
+   - Human-readable format
+   - Automatic 30-day retention
+
+3. **PostgreSQL Full Dumps** (Complete Database)
+   ```bash
+   npm run backup:postgres     # Full database dump
+   ```
+   - Complete database structure and data
+   - Requires PostgreSQL tools installed
+
+4. **API Export** (Manual)
+   - Endpoint: `GET /api/export` (admin only)
+   - Returns JSON export of all data
+
+### Complete Guide
+
+📖 **See [BACKUP-AND-RECOVERY.md](./BACKUP-AND-RECOVERY.md)** for:
+- Detailed backup procedures
+- Automated backup setup
+- Recovery scenarios
+- Data protection best practices
 
 ## Support
 
