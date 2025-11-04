@@ -755,7 +755,7 @@ app.get('/api/clients/:id/subtasks', ensureAuthenticated, async (req, res) => {
 app.post('/api/clients/:id/subtasks', ensureAuthenticated, async (req, res) => {
     try {
         const { subtaskText, assignee } = req.body;
-        const subtask = await createSubtask(req.params.id, subtaskText, assignee, false);
+        const subtask = await createSubtask(req.params.id, subtaskText, assignee, false, req.user.id);
 
         // Log activity
         await logActivity(req.params.id, req.user.id, 'subtask_created', {

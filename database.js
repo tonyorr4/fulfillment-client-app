@@ -116,6 +116,7 @@ async function initializeDatabase() {
                 assignee VARCHAR(255),
                 completed BOOLEAN DEFAULT false,
                 auto_created BOOLEAN DEFAULT false,
+                created_by INTEGER REFERENCES users(id),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 completed_at TIMESTAMP
             )
@@ -261,12 +262,12 @@ async function getSubtasksByClientId(clientId) {
 }
 
 // Helper function to create subtask
-async function createSubtask(clientId, subtaskText, assignee, autoCreated = false) {
+async function createSubtask(clientId, subtaskText, assignee, autoCreated = false, createdBy = null) {
     const result = await pool.query(`
-        INSERT INTO subtasks (client_id, subtask_text, assignee, auto_created)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO subtasks (client_id, subtask_text, assignee, auto_created, created_by)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING *
-    `, [clientId, subtaskText, assignee, autoCreated]);
+    `, [clientId, subtaskText, assignee, autoCreated, createdBy]);
 
     return result.rows[0];
 }

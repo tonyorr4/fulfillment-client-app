@@ -183,8 +183,8 @@ async function setMultipleFields(pool, clientId, fields, userId = null, automati
  */
 async function createSubtask(pool, clientId, text, assignee, markAutoCreated = true) {
     await pool.query(
-        `INSERT INTO subtasks (client_id, subtask_text, assignee, auto_created)
-         VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO subtasks (client_id, subtask_text, assignee, auto_created, created_by)
+         VALUES ($1, $2, $3, $4, NULL)`,
         [clientId, text, assignee, markAutoCreated]
     );
 }
