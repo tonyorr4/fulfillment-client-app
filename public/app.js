@@ -2020,7 +2020,7 @@ function makeFieldsEditable() {
         { id: 'detailClientId', key: 'client_id', type: 'input', inputType: 'text' },
         { id: 'detailInboundDate', key: 'est_inbound_date', type: 'input', inputType: 'date' },
         { id: 'detailEmail', key: 'client_email', type: 'input', inputType: 'email' },
-        { id: 'detailClientType', key: 'client_type', type: 'select', options: ['eFulfillment', '3PL', 'Hybrid'] },
+        { id: 'detailClientType', key: 'client_type', type: 'select', options: ['eFulfillment', 'Crowd Funding', 'Dropship'] },
         { id: 'detailAvgOrders', key: 'avg_orders', type: 'select', options: ['<100', '100-500', '500-1000', '1000-2500', '2500-5000', '5000+'] },
         { id: 'detailNumSkus', key: 'num_skus', type: 'select', options: ['<25', '25-100', '100-250', '250-500', '500+'] },
         { id: 'detailBattery', key: 'battery', type: 'select', options: ['Yes', 'No', 'N/A'] },
