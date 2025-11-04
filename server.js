@@ -1507,6 +1507,112 @@ app.get('/api/reports/inbound-dates', ensureAuthenticated, async (req, res) => {
     }
 });
 
+// ==================== ACTIVITY LOGS ROUTES ====================
+
+// Get activity logs with filtering and pagination
+app.get('/api/logs', ensureAuthenticated, async (req, res) => {
+    try {
+        const {
+            action,
+            user_id,
+            client_id,
+            start_date,
+            end_date,
+            limit = 100,
+            offset = 0
+        } = req.query;
+
+        let whereConditions = [];
+        let params = [];
+        let paramCount = 1;
+
+        // Build WHERE clause based on filters
+        if (action) {
+            whereConditions.push(`al.action = $${paramCount}`);
+            params.push(action);
+            paramCount++;
+        }
+
+        if (user_id) {
+            whereConditions.push(`al.user_id = $${paramCount}`);
+            params.push(user_id);
+            paramCount++;
+        }
+
+        if (client_id) {
+            whereConditions.push(`al.client_id = $${paramCount}`);
+            params.push(client_id);
+            paramCount++;
+        }
+
+        if (start_date) {
+            whereConditions.push(`al.created_at >= $${paramCount}`);
+            params.push(start_date);
+            paramCount++;
+        }
+
+        if (end_date) {
+            whereConditions.push(`al.created_at <= $${paramCount}`);
+            params.push(end_date);
+            paramCount++;
+        }
+
+        const whereClause = whereConditions.length > 0
+            ? 'WHERE ' + whereConditions.join(' AND ')
+            : '';
+
+        // Get total count
+        const countQuery = `
+            SELECT COUNT(*) as total
+            FROM activity_log al
+            ${whereClause}
+        `;
+        const countResult = await pool.query(countQuery, params);
+        const totalLogs = parseInt(countResult.rows[0].total);
+
+        // Get logs with pagination
+        params.push(limit);
+        const limitParam = paramCount++;
+        params.push(offset);
+        const offsetParam = paramCount;
+
+        const logsQuery = `
+            SELECT
+                al.id,
+                al.action,
+                al.created_at,
+                al.details,
+                u.name as user_name,
+                u.id as user_id,
+                c.client_id as client_code,
+                c.client_name,
+                c.id as client_id
+            FROM activity_log al
+            LEFT JOIN users u ON al.user_id = u.id
+            LEFT JOIN clients c ON al.client_id = c.id
+            ${whereClause}
+            ORDER BY al.created_at DESC
+            LIMIT $${limitParam} OFFSET $${offsetParam}
+        `;
+
+        const logsResult = await pool.query(logsQuery, params);
+
+        res.json({
+            success: true,
+            data: {
+                logs: logsResult.rows,
+                total: totalLogs,
+                limit: parseInt(limit),
+                offset: parseInt(offset)
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching activity logs:', error);
+        res.status(500).json({ error: 'Failed to fetch activity logs' });
+    }
+});
+
 // ==================== AUTOMATION MANAGEMENT ROUTES ====================
 
 // Get all automations

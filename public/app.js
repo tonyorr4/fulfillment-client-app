@@ -2938,6 +2938,10 @@ function switchTab(tabName) {
     } else if (tabName === 'reports') {
         document.getElementById('reports-tab').classList.add('active');
         loadReports(); // Load reports when tab is opened
+    } else if (tabName === 'logs') {
+        document.getElementById('logs-tab').classList.add('active');
+        populateUserFilter(); // Populate user filter dropdown
+        loadLogs(); // Load logs when tab is opened
     } else if (tabName === 'automations') {
         document.getElementById('automations-tab-content').classList.add('active');
         loadAutomations(); // Load automations when tab is opened
@@ -3767,6 +3771,201 @@ window.closeModal = closeModal;
 window.openClientDetail = openClientDetail;
 window.logout = logout;
 window.toggleAutomation = toggleAutomation;
+// ==================== ACTIVITY LOGS ====================
+
+let currentLogsPage = 0;
+const logsPageSize = 100;
+
+// Load activity logs
+async function loadLogs() {
+    try {
+        // Get filter values
+        const action = document.getElementById('log-filter-action')?.value || '';
+        const userId = document.getElementById('log-filter-user')?.value || '';
+        const startDate = document.getElementById('log-filter-start-date')?.value || '';
+        const endDate = document.getElementById('log-filter-end-date')?.value || '';
+
+        // Build query params
+        const params = new URLSearchParams({
+            limit: logsPageSize,
+            offset: currentLogsPage * logsPageSize
+        });
+
+        if (action) params.append('action', action);
+        if (userId) params.append('user_id', userId);
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+
+        const response = await fetch(`/api/logs?${params.toString()}`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch logs');
+        }
+
+        const result = await response.json();
+        renderLogs(result.data);
+
+    } catch (error) {
+        console.error('Error loading logs:', error);
+        showToast('Failed to load activity logs', 'error');
+    }
+}
+
+// Render logs table
+function renderLogs(data) {
+    const tbody = document.getElementById('logs-tbody');
+    if (!tbody) return;
+
+    if (data.logs.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-tertiary);">
+                    <i class="fas fa-inbox" style="font-size: 24px; margin-bottom: 12px;"></i>
+                    <div>No activity logs found</div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    // Action type labels and colors
+    const actionTypes = {
+        'client_created': { label: 'Client Created', color: '#4CAF50', icon: 'fa-plus-circle' },
+        'client_updated': { label: 'Client Updated', color: '#2196F3', icon: 'fa-edit' },
+        'client_deleted': { label: 'Client Deleted', color: '#F44336', icon: 'fa-trash' },
+        'status_changed': { label: 'Status Changed', color: '#FF9800', icon: 'fa-exchange-alt' },
+        'approval_changed': { label: 'Approval Changed', color: '#9C27B0', icon: 'fa-check-circle' },
+        'subtask_created': { label: 'Subtask Created', color: '#00BCD4', icon: 'fa-tasks' },
+        'subtask_toggled': { label: 'Subtask Toggled', color: '#3F51B5', icon: 'fa-check-square' },
+        'subtask_assignee_changed': { label: 'Assignee Changed', color: '#795548', icon: 'fa-user' },
+        'comment_added': { label: 'Comment Added', color: '#607D8B', icon: 'fa-comment' }
+    };
+
+    tbody.innerHTML = data.logs.map((log, index) => {
+        const actionInfo = actionTypes[log.action] || { label: log.action, color: '#888', icon: 'fa-circle' };
+        const timestamp = new Date(log.created_at).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        // Format details
+        let detailsText = '';
+        if (log.details) {
+            if (log.action === 'client_updated' && log.details.fields_updated) {
+                detailsText = `Fields: ${log.details.fields_updated.join(', ')}`;
+            } else if (log.action === 'status_changed') {
+                detailsText = `${log.details.old_status || 'N/A'} → ${log.details.new_status || 'N/A'}`;
+            } else if (log.action === 'approval_changed') {
+                detailsText = `Approval: ${log.details.approval || 'N/A'}`;
+            } else if (log.action === 'subtask_created') {
+                detailsText = log.details.subtask_text || 'Subtask created';
+            } else if (log.action === 'subtask_toggled') {
+                detailsText = log.details.completed ? 'Completed' : 'Uncompleted';
+            } else if (log.action === 'comment_added') {
+                detailsText = log.details.comment_text ? log.details.comment_text.substring(0, 50) + '...' : 'Comment added';
+            }
+        }
+
+        return `
+            <tr style="border-bottom: 1px solid var(--border-color); ${index % 2 === 0 ? 'background: var(--bg-elevated);' : ''}">
+                <td style="padding: 12px; font-size: 13px; color: var(--text-secondary);">${timestamp}</td>
+                <td style="padding: 12px; font-size: 14px; color: var(--text-primary);">${log.user_name || 'System'}</td>
+                <td style="padding: 12px;">
+                    <span style="
+                        display: inline-block;
+                        padding: 4px 12px;
+                        border-radius: 12px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        background: ${actionInfo.color}22;
+                        color: ${actionInfo.color};
+                    ">
+                        <i class="fas ${actionInfo.icon}" style="margin-right: 4px;"></i> ${actionInfo.label}
+                    </span>
+                </td>
+                <td style="padding: 12px; font-size: 14px; color: var(--text-primary);">
+                    ${log.client_code ? `${log.client_code} - ${log.client_name || ''}` : '--'}
+                </td>
+                <td style="padding: 12px; font-size: 13px; color: var(--text-secondary);">${detailsText || '--'}</td>
+            </tr>
+        `;
+    }).join('');
+
+    // Update pagination
+    const showingCount = Math.min(data.offset + data.logs.length, data.total);
+    document.getElementById('logs-showing-count').textContent = showingCount;
+    document.getElementById('logs-total-count').textContent = data.total;
+
+    const prevBtn = document.getElementById('logs-prev-btn');
+    const nextBtn = document.getElementById('logs-next-btn');
+
+    if (prevBtn) {
+        prevBtn.disabled = currentLogsPage === 0;
+        prevBtn.style.opacity = currentLogsPage === 0 ? '0.5' : '1';
+        prevBtn.style.cursor = currentLogsPage === 0 ? 'not-allowed' : 'pointer';
+    }
+
+    if (nextBtn) {
+        const hasMore = data.offset + data.logs.length < data.total;
+        nextBtn.disabled = !hasMore;
+        nextBtn.style.opacity = hasMore ? '1' : '0.5';
+        nextBtn.style.cursor = hasMore ? 'pointer' : 'not-allowed';
+    }
+}
+
+// Pagination functions
+function previousLogsPage() {
+    if (currentLogsPage > 0) {
+        currentLogsPage--;
+        loadLogs();
+    }
+}
+
+function nextLogsPage() {
+    currentLogsPage++;
+    loadLogs();
+}
+
+// Clear filters
+function clearLogFilters() {
+    document.getElementById('log-filter-action').value = '';
+    document.getElementById('log-filter-user').value = '';
+    document.getElementById('log-filter-start-date').value = '';
+    document.getElementById('log-filter-end-date').value = '';
+    currentLogsPage = 0;
+    loadLogs();
+}
+
+// Populate user filter dropdown
+async function populateUserFilter() {
+    try {
+        const userSelect = document.getElementById('log-filter-user');
+        if (!userSelect) return;
+
+        // Use existing allUsers data if available
+        if (window.allUsers && window.allUsers.length > 0) {
+            const options = window.allUsers.map(user =>
+                `<option value="${user.id}">${user.name}</option>`
+            ).join('');
+            userSelect.innerHTML = '<option value="">All Users</option>' + options;
+        }
+    } catch (error) {
+        console.error('Error populating user filter:', error);
+    }
+}
+
+// Export functions to window
+window.loadLogs = loadLogs;
+window.previousLogsPage = previousLogsPage;
+window.nextLogsPage = nextLogsPage;
+window.clearLogFilters = clearLogFilters;
+
 window.deleteAutomation = deleteAutomation;
 window.openAutomationModal = openAutomationModal;
 window.editAutomation = editAutomation;

@@ -1985,6 +1985,9 @@
         <button class="nav-tab" onclick="switchTab('reports')">
             <i class="fas fa-chart-bar"></i> Reports
         </button>
+        <button class="nav-tab" onclick="switchTab('logs')">
+            <i class="fas fa-history"></i> Logs
+        </button>
         <button class="nav-tab" id="automations-tab" onclick="switchTab('automations')" style="display: none;">
             <i class="fas fa-robot"></i> Automations
         </button>
@@ -2314,6 +2317,110 @@
                 <div class="automation-empty">
                     <i class="fas fa-robot"></i>
                     <p>Loading automations...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Tab Content -->
+    <div id="logs-tab" class="tab-content">
+        <div style="padding: 32px; max-width: 1600px; margin: 0 auto;">
+            <div style="margin-bottom: 32px;">
+                <h2 style="font-size: 28px; font-weight: 600; margin-bottom: 8px;">
+                    <i class="fas fa-history"></i> Activity Logs
+                </h2>
+                <p style="color: var(--text-secondary); font-size: 14px;">Track all changes and actions in the dashboard</p>
+            </div>
+
+            <!-- Filters -->
+            <div style="background: var(--bg-card); padding: 24px; border-radius: 12px; margin-bottom: 24px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color);">
+                <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--text-primary);">
+                    <i class="fas fa-filter"></i> Filters
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <!-- Action Type Filter -->
+                    <div class="form-group">
+                        <label>Action Type</label>
+                        <select id="log-filter-action" onchange="loadLogs()">
+                            <option value="">All Actions</option>
+                            <option value="client_created">Client Created</option>
+                            <option value="client_updated">Client Updated</option>
+                            <option value="client_deleted">Client Deleted</option>
+                            <option value="status_changed">Status Changed</option>
+                            <option value="approval_changed">Approval Changed</option>
+                            <option value="subtask_created">Subtask Created</option>
+                            <option value="subtask_toggled">Subtask Toggled</option>
+                            <option value="subtask_assignee_changed">Subtask Assignee Changed</option>
+                            <option value="comment_added">Comment Added</option>
+                        </select>
+                    </div>
+
+                    <!-- User Filter -->
+                    <div class="form-group">
+                        <label>User</label>
+                        <select id="log-filter-user" onchange="loadLogs()">
+                            <option value="">All Users</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Date Range -->
+                    <div class="form-group">
+                        <label>From Date</label>
+                        <input type="date" id="log-filter-start-date" onchange="loadLogs()">
+                    </div>
+
+                    <div class="form-group">
+                        <label>To Date</label>
+                        <input type="date" id="log-filter-end-date" onchange="loadLogs()">
+                    </div>
+
+                    <!-- Clear Filters Button -->
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button onclick="clearLogFilters()" style="width: 100%; padding: 10px; background: var(--bg-elevated); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                            <i class="fas fa-times"></i> Clear Filters
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Table -->
+            <div style="background: var(--bg-card); padding: 24px; border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color);">
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: var(--bg-elevated); border-bottom: 2px solid var(--border-color);">
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Timestamp</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">User</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Action</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Client</th>
+                                <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-tbody">
+                            <tr>
+                                <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-tertiary);">
+                                    <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 12px;"></i>
+                                    <div>Loading activity logs...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div id="logs-pagination" style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                    <div style="color: var(--text-secondary); font-size: 14px;">
+                        Showing <span id="logs-showing-count">0</span> of <span id="logs-total-count">0</span> logs
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="logs-prev-btn" onclick="previousLogsPage()" disabled style="padding: 8px 16px; background: var(--bg-elevated); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 14px;">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        <button id="logs-next-btn" onclick="nextLogsPage()" disabled style="padding: 8px 16px; background: var(--bg-elevated); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 14px;">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
