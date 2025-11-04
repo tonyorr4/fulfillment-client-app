@@ -506,7 +506,8 @@ app.patch('/api/clients/:id/status', ensureAuthenticated, blockSalesRole, async 
             'status_changed',
             client.id,
             client,
-            req.user.id
+            req.user.id,
+            oldStatus  // Pass old status so automations can detect transitions
         );
 
         console.log(`✓ Automations completed: ${automationSummary.automationsExecuted}/${automationSummary.automationsTriggered} executed, ${automationSummary.totalActions} actions performed`);
@@ -1764,7 +1765,8 @@ app.post('/api/automations', ensureAuthenticated, checkAutoAdmin, async (req, re
             conditions,
             actions,
             enabled = true,
-            execution_order = 0
+            execution_order = 0,
+            trigger_on_enter = true
         } = req.body;
 
         // Validation
@@ -1787,8 +1789,8 @@ app.post('/api/automations', ensureAuthenticated, checkAutoAdmin, async (req, re
         // Insert automation
         const result = await pool.query(
             `INSERT INTO automations
-             (name, description, trigger_event, conditions, actions, enabled, execution_order, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             (name, description, trigger_event, conditions, actions, enabled, execution_order, trigger_on_enter, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              RETURNING *`,
             [
                 name,
@@ -1798,6 +1800,7 @@ app.post('/api/automations', ensureAuthenticated, checkAutoAdmin, async (req, re
                 JSON.stringify(actions),
                 enabled,
                 execution_order,
+                trigger_on_enter,
                 req.user.id
             ]
         );
@@ -1821,7 +1824,8 @@ app.patch('/api/automations/:id', ensureAuthenticated, checkAutoAdmin, async (re
             conditions,
             actions,
             enabled,
-            execution_order
+            execution_order,
+            trigger_on_enter
         } = req.body;
 
         // Check if automation exists
@@ -1862,6 +1866,10 @@ app.patch('/api/automations/:id', ensureAuthenticated, checkAutoAdmin, async (re
         if (execution_order !== undefined) {
             updates.push(`execution_order = $${paramCount++}`);
             values.push(execution_order);
+        }
+        if (trigger_on_enter !== undefined) {
+            updates.push(`trigger_on_enter = $${paramCount++}`);
+            values.push(trigger_on_enter);
         }
 
         updates.push(`updated_at = CURRENT_TIMESTAMP`);

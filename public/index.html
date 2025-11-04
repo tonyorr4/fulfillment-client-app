@@ -2899,6 +2899,17 @@
                             <span>Enabled (automation will run immediately)</span>
                         </label>
                     </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="automation-trigger-on-enter" checked>
+                            <span>Only trigger when status changes (entering new status)</span>
+                        </label>
+                        <small style="color: var(--text-tertiary); display: block; margin-top: 8px; margin-left: 28px;">
+                            ✓ Checked: Only runs when client ENTERS the status (first time)<br>
+                            ✗ Unchecked: Runs every time client is updated while IN that status
+                        </small>
+                    </div>
                 </div>
 
                 <!-- Step 2: Conditions -->

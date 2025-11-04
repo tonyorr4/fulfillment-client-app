@@ -3373,6 +3373,7 @@ function openAutomationModal(automationId = null) {
     document.getElementById('automation-trigger').value = '';
     document.getElementById('automation-order').value = '0';
     document.getElementById('automation-enabled').checked = true;
+    document.getElementById('automation-trigger-on-enter').checked = true;
 
     // Reset condition builder
     document.getElementById('condition-mode').value = 'always';
@@ -3415,6 +3416,7 @@ async function editAutomation(automationId) {
         document.getElementById('automation-trigger').value = automation.trigger_event || '';
         document.getElementById('automation-order').value = automation.execution_order || 0;
         document.getElementById('automation-enabled').checked = automation.enabled !== false;
+        document.getElementById('automation-trigger-on-enter').checked = automation.trigger_on_enter !== false;
 
         // Populate Step 2: Conditions
         const conditions = automation.conditions;
@@ -3819,6 +3821,7 @@ async function saveAutomation() {
         const trigger = document.getElementById('automation-trigger').value;
         const order = parseInt(document.getElementById('automation-order').value) || 0;
         const enabled = document.getElementById('automation-enabled').checked;
+        const triggerOnEnter = document.getElementById('automation-trigger-on-enter').checked;
 
         // Validate
         if (!name || !trigger) {
@@ -3921,7 +3924,8 @@ async function saveAutomation() {
                 conditions,
                 actions,
                 enabled,
-                execution_order: order
+                execution_order: order,
+                trigger_on_enter: triggerOnEnter
             })
         });
 

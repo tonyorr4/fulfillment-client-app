@@ -320,7 +320,7 @@ async function logAutomationExecution(
  * @param {number} userId - User ID (for audit trail)
  * @returns {Object} - Summary of automation execution
  */
-async function triggerAutomations(pool, event, clientId, clientData, userId = null) {
+async function triggerAutomations(pool, event, clientId, clientData, userId = null, oldStatus = null) {
     const startTime = Date.now();
     const summary = {
         event: event,
@@ -350,6 +350,18 @@ async function triggerAutomations(pool, event, clientId, clientData, userId = nu
             let errorMessage = null;
 
             try {
+                // Check if this is a status_changed event with trigger_on_enter flag
+                // If trigger_on_enter is true, only execute if status actually changed
+                const triggerOnEnter = automation.trigger_on_enter === true;
+                const isStatusChangeEvent = event === 'status_changed';
+                const newStatus = clientData.status;
+
+                // If trigger_on_enter is enabled and status didn't change, skip this automation
+                if (triggerOnEnter && isStatusChangeEvent && oldStatus === newStatus) {
+                    console.log(`⏭️  Skipping automation "${automation.name}" - status didn't change (${oldStatus} → ${newStatus})`);
+                    continue;
+                }
+
                 // Evaluate conditions
                 conditionsMet = evaluateConditions(automation.conditions, clientData);
 
