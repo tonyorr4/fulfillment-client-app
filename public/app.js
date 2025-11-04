@@ -2378,6 +2378,17 @@ function renderInboundDatesTable(clients) {
     }).join('');
 }
 
+// Scroll to section in Reports tab
+function scrollToSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (section) {
+        section.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+    }
+}
+
 // Toggle overdue section visibility
 function toggleOverdueSection() {
     const overdueSection = document.getElementById('overdue-section');
