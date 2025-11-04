@@ -2571,21 +2571,43 @@ async function loadOpenSubtasks() {
         const result = await response.json();
         const data = result.data;
 
-        // Update KPI cards
-        document.getElementById('kpi-open-clients').textContent = data.summary.totalClients;
-        document.getElementById('kpi-open-total').textContent = data.summary.totalOpenSubtasks;
-        document.getElementById('kpi-open-assigned').textContent = data.summary.assignedSubtasks;
-        document.getElementById('kpi-open-unassigned').textContent = data.summary.unassignedSubtasks;
+        // Update KPI cards (show 0 if no data)
+        const kpiOpenClients = document.getElementById('kpi-open-clients');
+        const kpiOpenTotal = document.getElementById('kpi-open-total');
+        const kpiOpenAssigned = document.getElementById('kpi-open-assigned');
+        const kpiOpenUnassigned = document.getElementById('kpi-open-unassigned');
+
+        if (kpiOpenClients) kpiOpenClients.textContent = data.summary?.totalClients || 0;
+        if (kpiOpenTotal) kpiOpenTotal.textContent = data.summary?.totalOpenSubtasks || 0;
+        if (kpiOpenAssigned) kpiOpenAssigned.textContent = data.summary?.assignedSubtasks || 0;
+        if (kpiOpenUnassigned) kpiOpenUnassigned.textContent = data.summary?.unassignedSubtasks || 0;
 
         // Render assignee breakdown
-        renderAssigneeBreakdown(data.byAssignee);
+        renderAssigneeBreakdown(data.byAssignee || []);
 
         // Render clients table
-        renderOpenSubtasksTable(data.clients);
+        renderOpenSubtasksTable(data.clients || []);
 
     } catch (error) {
         console.error('Error loading open subtasks report:', error);
         showToast('Failed to load open subtasks report', 'error');
+
+        // Show error state in UI
+        const container = document.getElementById('open-subtasks-container');
+        if (container) {
+            container.innerHTML = `
+                <div style="padding: 40px; text-align: center; color: var(--text-tertiary);">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; margin-bottom: 12px; color: #F44336; opacity: 0.5;"></i>
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Error Loading Data</div>
+                    <div style="font-size: 14px;">Unable to load open subtasks report</div>
+                </div>
+            `;
+        }
+
+        const breakdown = document.getElementById('assignee-breakdown');
+        if (breakdown) {
+            breakdown.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">Unable to load data</div>';
+        }
     }
 }
 
@@ -2594,8 +2616,13 @@ function renderAssigneeBreakdown(byAssignee) {
     const container = document.getElementById('assignee-breakdown');
     if (!container) return;
 
-    if (byAssignee.length === 0) {
-        container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">No open subtasks</div>';
+    if (!byAssignee || byAssignee.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: var(--text-tertiary);">
+                <i class="fas fa-check-circle" style="font-size: 32px; margin-bottom: 8px; opacity: 0.5;"></i>
+                <div>No open subtasks</div>
+            </div>
+        `;
         return;
     }
 
@@ -2624,12 +2651,12 @@ function renderOpenSubtasksTable(clients) {
     const container = document.getElementById('open-subtasks-container');
     if (!container) return;
 
-    if (clients.length === 0) {
+    if (!clients || clients.length === 0) {
         container.innerHTML = `
             <div style="padding: 40px; text-align: center; color: var(--text-tertiary);">
-                <i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;"></i>
-                <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">All Clear!</div>
-                <div style="font-size: 14px;">No open subtasks found</div>
+                <i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 12px; color: #4CAF50; opacity: 0.5;"></i>
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">All Clear!</div>
+                <div style="font-size: 14px;">No open subtasks found. Great job!</div>
             </div>
         `;
         return;
