@@ -61,6 +61,20 @@ async function checkAuth() {
         const response = await fetch('/api/auth/user', {
             credentials: 'include'
         });
+
+        // Handle rate limiting
+        if (response.status === 429) {
+            console.error('Rate limit exceeded');
+            const errorData = await response.json().catch(() => ({ message: 'Too many requests' }));
+            showToast(errorData.message || 'Too many requests. Please wait and try again.', 'error');
+            return;
+        }
+
+        // Handle non-JSON responses
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const data = await response.json();
 
         if (data.authenticated) {
