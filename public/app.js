@@ -2289,13 +2289,15 @@ async function loadInboundDates() {
         document.getElementById('kpi-ib-avg').textContent = data.avgDaysUntilInbound;
         document.getElementById('kpi-ib-overdue').textContent = data.overdueCount;
 
-        // Show/hide overdue section
-        const overdueSection = document.getElementById('overdue-section');
-        if (data.overdueClients && data.overdueClients.length > 0) {
-            overdueSection.style.display = 'block';
-            renderOverdueDatesTable(data.overdueClients);
+        // Store overdue clients data for toggle function
+        window.overdueClientsData = data.overdueClients || [];
+
+        // Update overdue KPI card visibility
+        const overdueKpiCard = document.getElementById('overdue-kpi-card');
+        if (data.overdueCount > 0) {
+            overdueKpiCard.style.display = 'block';
         } else {
-            overdueSection.style.display = 'none';
+            overdueKpiCard.style.display = 'none';
         }
 
         // Render tables and charts
@@ -2376,12 +2378,48 @@ function renderInboundDatesTable(clients) {
     }).join('');
 }
 
+// Toggle overdue section visibility
+function toggleOverdueSection() {
+    const overdueSection = document.getElementById('overdue-section');
+    const chevron = document.getElementById('overdue-chevron');
+    const kpiCard = document.getElementById('overdue-kpi-card');
+
+    if (overdueSection.style.display === 'none' || !overdueSection.style.display) {
+        // Show section
+        overdueSection.style.display = 'block';
+        if (chevron) chevron.className = 'fas fa-chevron-up';
+        if (kpiCard) kpiCard.style.transform = 'scale(0.98)';
+
+        // Render table data if not already rendered
+        if (window.overdueClientsData && window.overdueClientsData.length > 0) {
+            renderOverdueDatesTable(window.overdueClientsData);
+        }
+
+        // Scroll to overdue section
+        setTimeout(() => {
+            overdueSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+    } else {
+        // Hide section
+        overdueSection.style.display = 'none';
+        if (chevron) chevron.className = 'fas fa-chevron-down';
+        if (kpiCard) kpiCard.style.transform = 'scale(1)';
+    }
+}
+
 // Render overdue dates table
 function renderOverdueDatesTable(clients) {
     const tbody = document.getElementById('overdue-dates-tbody');
     if (!tbody) return;
 
     if (clients.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="padding: 40px; text-align: center; color: var(--text-tertiary);">
+                    <div>No overdue clients found</div>
+                </td>
+            </tr>
+        `;
         return;
     }
 
@@ -2403,7 +2441,7 @@ function renderOverdueDatesTable(clients) {
         });
 
         return `
-            <tr style="border-bottom: 1px solid #FFCDD2; ${index % 2 === 0 ? 'background: #FFF;' : 'background: #FFEBEE;'}">
+            <tr style="border-bottom: 1px solid var(--border-color); ${index % 2 === 0 ? 'background: var(--bg-elevated);' : ''}">
                 <td style="padding: 12px; font-size: 14px; color: var(--text-primary);">${client.client_id || '--'}</td>
                 <td style="padding: 12px; font-size: 14px; font-weight: 500; color: var(--text-primary);">${client.client_name || '--'}</td>
                 <td style="padding: 12px;">
@@ -2418,7 +2456,7 @@ function renderOverdueDatesTable(clients) {
                     ">${status.label}</span>
                 </td>
                 <td style="padding: 12px; font-size: 14px; color: var(--text-primary);">${formattedDate}</td>
-                <td style="padding: 12px; font-size: 14px; font-weight: 700; color: #D32F2F;">
+                <td style="padding: 12px; font-size: 14px; font-weight: 700; color: #F44336;">
                     ${client.days_overdue} ${client.days_overdue === 1 ? 'day' : 'days'} overdue
                 </td>
                 <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.sales_team || '--'}</td>

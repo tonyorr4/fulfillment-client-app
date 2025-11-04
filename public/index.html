@@ -2202,36 +2202,11 @@
                         <div style="font-size: 14px; color: #888;">Until inbound</div>
                     </div>
 
-                    <!-- Overdue IB Dates -->
-                    <div style="background: var(--bg-card); padding: 24px; border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); border-left: 4px solid #F44336;">
-                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Overdue</div>
+                    <!-- Overdue IB Dates (Clickable) -->
+                    <div id="overdue-kpi-card" onclick="toggleOverdueSection()" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseout="this.style.transform=''; this.style.boxShadow='var(--shadow-sm)';" style="display: none; background: var(--bg-card); padding: 24px; border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); border-left: 4px solid #F44336; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Overdue <i class="fas fa-chevron-down" id="overdue-chevron" style="font-size: 11px; margin-left: 4px;"></i></div>
                         <div id="kpi-ib-overdue" style="font-size: 32px; font-weight: 700; color: #F44336; margin-bottom: 8px;">--</div>
-                        <div style="font-size: 14px; color: #888;">Past IB dates</div>
-                    </div>
-                </div>
-
-                <!-- Overdue Clients Section -->
-                <div id="overdue-section" style="display: none; background: #FFF3E0; padding: 20px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #F44336;">
-                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #D32F2F;">
-                        <i class="fas fa-exclamation-triangle"></i> Clients with Past IB Dates (Need Update)
-                    </h3>
-                    <p style="font-size: 14px; color: #666; margin-bottom: 16px;">These clients have IB dates that have passed. Please review and update their estimated inbound dates.</p>
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
-                            <thead>
-                                <tr style="background: #FFEBEE; border-bottom: 2px solid #EF9A9A;">
-                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Client ID</th>
-                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Client Name</th>
-                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Status</th>
-                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Est. IB Date</th>
-                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Days Overdue</th>
-                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Sales Team</th>
-                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Fulfillment Ops</th>
-                                </tr>
-                            </thead>
-                            <tbody id="overdue-dates-tbody">
-                            </tbody>
-                        </table>
+                        <div style="font-size: 14px; color: var(--text-secondary);">Click to view</div>
                     </div>
                 </div>
 
@@ -2272,6 +2247,36 @@
                     </h3>
                     <div style="position: relative; height: 300px;">
                         <canvas id="inboundTimelineChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Overdue Clients Section (Collapsible) -->
+                <div id="overdue-section" style="display: none; background: var(--bg-card); padding: 24px; border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); border-left: 4px solid #F44336; margin-top: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="font-size: 16px; font-weight: 600; margin: 0; color: var(--text-primary);">
+                            <i class="fas fa-exclamation-triangle" style="color: #F44336;"></i> Clients with Past IB Dates (Need Update)
+                        </h3>
+                        <button onclick="toggleOverdueSection()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 20px; padding: 4px 8px;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">These clients have IB dates that have passed. Please review and update their estimated inbound dates.</p>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: var(--bg-elevated); border-bottom: 2px solid var(--border-color);">
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Client ID</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Client Name</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Status</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Est. IB Date</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Days Overdue</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Sales Team</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Fulfillment Ops</th>
+                                </tr>
+                            </thead>
+                            <tbody id="overdue-dates-tbody">
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
