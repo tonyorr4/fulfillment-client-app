@@ -1766,7 +1766,8 @@ app.post('/api/automations', ensureAuthenticated, checkAutoAdmin, async (req, re
             actions,
             enabled = true,
             execution_order = 0,
-            trigger_on_enter = true
+            trigger_on_enter = true,
+            trigger_on_enter_status = null
         } = req.body;
 
         // Validation
@@ -1789,8 +1790,8 @@ app.post('/api/automations', ensureAuthenticated, checkAutoAdmin, async (req, re
         // Insert automation
         const result = await pool.query(
             `INSERT INTO automations
-             (name, description, trigger_event, conditions, actions, enabled, execution_order, trigger_on_enter, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             (name, description, trigger_event, conditions, actions, enabled, execution_order, trigger_on_enter, trigger_on_enter_status, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
              RETURNING *`,
             [
                 name,
@@ -1801,6 +1802,7 @@ app.post('/api/automations', ensureAuthenticated, checkAutoAdmin, async (req, re
                 enabled,
                 execution_order,
                 trigger_on_enter,
+                trigger_on_enter_status,
                 req.user.id
             ]
         );
@@ -1825,7 +1827,8 @@ app.patch('/api/automations/:id', ensureAuthenticated, checkAutoAdmin, async (re
             actions,
             enabled,
             execution_order,
-            trigger_on_enter
+            trigger_on_enter,
+            trigger_on_enter_status
         } = req.body;
 
         // Check if automation exists
@@ -1870,6 +1873,10 @@ app.patch('/api/automations/:id', ensureAuthenticated, checkAutoAdmin, async (re
         if (trigger_on_enter !== undefined) {
             updates.push(`trigger_on_enter = $${paramCount++}`);
             values.push(trigger_on_enter);
+        }
+        if (trigger_on_enter_status !== undefined) {
+            updates.push(`trigger_on_enter_status = $${paramCount++}`);
+            values.push(trigger_on_enter_status);
         }
 
         updates.push(`updated_at = CURRENT_TIMESTAMP`);

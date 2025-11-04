@@ -353,13 +353,23 @@ async function triggerAutomations(pool, event, clientId, clientData, userId = nu
                 // Check if this is a status_changed event with trigger_on_enter flag
                 // If trigger_on_enter is true, only execute if status actually changed
                 const triggerOnEnter = automation.trigger_on_enter === true;
+                const triggerOnEnterStatus = automation.trigger_on_enter_status;
                 const isStatusChangeEvent = event === 'status_changed';
                 const newStatus = clientData.status;
 
-                // If trigger_on_enter is enabled and status didn't change, skip this automation
-                if (triggerOnEnter && isStatusChangeEvent && oldStatus === newStatus) {
-                    console.log(`⏭️  Skipping automation "${automation.name}" - status didn't change (${oldStatus} → ${newStatus})`);
-                    continue;
+                // If trigger_on_enter is enabled, check status transition rules
+                if (triggerOnEnter && isStatusChangeEvent) {
+                    // If status didn't change, skip
+                    if (oldStatus === newStatus) {
+                        console.log(`⏭️  Skipping automation "${automation.name}" - status didn't change (${oldStatus} → ${newStatus})`);
+                        continue;
+                    }
+
+                    // If specific status is set, only trigger when entering that status
+                    if (triggerOnEnterStatus && newStatus !== triggerOnEnterStatus) {
+                        console.log(`⏭️  Skipping automation "${automation.name}" - entered "${newStatus}" but automation is for "${triggerOnEnterStatus}"`);
+                        continue;
+                    }
                 }
 
                 // Evaluate conditions

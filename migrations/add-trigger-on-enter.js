@@ -34,17 +34,36 @@ async function migrate() {
         // Add trigger_on_enter column (default TRUE for backward compatibility)
         await client.query(`
             ALTER TABLE automations
-            ADD COLUMN trigger_on_enter BOOLEAN DEFAULT true
+            ADD COLUMN IF NOT EXISTS trigger_on_enter BOOLEAN DEFAULT true
         `);
 
         console.log('✅ Added trigger_on_enter column to automations table (default: true)');
 
-        // Update existing "client-setup" automation to use trigger_on_enter
+        // Add trigger_on_enter_status column
+        const checkStatusColumn = await client.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'automations'
+            AND column_name = 'trigger_on_enter_status'
+        `);
+
+        if (checkStatusColumn.rows.length === 0) {
+            await client.query(`
+                ALTER TABLE automations
+                ADD COLUMN trigger_on_enter_status VARCHAR(50)
+            `);
+            console.log('✅ Added trigger_on_enter_status column to automations table');
+        } else {
+            console.log('✅ Column trigger_on_enter_status already exists');
+        }
+
+        // Update existing "client-setup" automation to use trigger_on_enter and set status
         const updateResult = await client.query(`
             UPDATE automations
-            SET trigger_on_enter = true
-            WHERE name LIKE '%client setup%'
-            OR name LIKE '%Client Setup%'
+            SET trigger_on_enter = true,
+                trigger_on_enter_status = 'client-setup'
+            WHERE (name LIKE '%client setup%' OR name LIKE '%Client Setup%')
+            AND trigger_event = 'status_changed'
             RETURNING id, name
         `);
 
@@ -56,9 +75,13 @@ async function migrate() {
         }
 
         console.log('\n✅ Migration completed successfully!');
-        console.log('\nWhat trigger_on_enter does:');
-        console.log('  - TRUE: Only trigger when status CHANGES (e.g., moving INTO client-setup)');
-        console.log('  - FALSE: Trigger every time client is updated while IN that status');
+        console.log('\nWhat these fields do:');
+        console.log('  - trigger_on_enter (TRUE/FALSE):');
+        console.log('    • TRUE: Only trigger when status CHANGES');
+        console.log('    • FALSE: Trigger every time client is updated while matching conditions');
+        console.log('  - trigger_on_enter_status (status name):');
+        console.log('    • When set: Only trigger when entering THIS specific status');
+        console.log('    • When NULL: Trigger when entering ANY status (if conditions match)');
 
     } catch (error) {
         console.error('❌ Migration failed:', error);

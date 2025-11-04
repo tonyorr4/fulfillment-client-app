@@ -3374,6 +3374,8 @@ function openAutomationModal(automationId = null) {
     document.getElementById('automation-order').value = '0';
     document.getElementById('automation-enabled').checked = true;
     document.getElementById('automation-trigger-on-enter').checked = true;
+    document.getElementById('automation-enter-status').value = '';
+    toggleEnterStatusSelector();
 
     // Reset condition builder
     document.getElementById('condition-mode').value = 'always';
@@ -3417,6 +3419,8 @@ async function editAutomation(automationId) {
         document.getElementById('automation-order').value = automation.execution_order || 0;
         document.getElementById('automation-enabled').checked = automation.enabled !== false;
         document.getElementById('automation-trigger-on-enter').checked = automation.trigger_on_enter !== false;
+        document.getElementById('automation-enter-status').value = automation.trigger_on_enter_status || '';
+        toggleEnterStatusSelector();
 
         // Populate Step 2: Conditions
         const conditions = automation.conditions;
@@ -3822,10 +3826,17 @@ async function saveAutomation() {
         const order = parseInt(document.getElementById('automation-order').value) || 0;
         const enabled = document.getElementById('automation-enabled').checked;
         const triggerOnEnter = document.getElementById('automation-trigger-on-enter').checked;
+        const triggerOnEnterStatus = document.getElementById('automation-enter-status').value;
 
         // Validate
         if (!name || !trigger) {
             showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        // Validate trigger_on_enter_status if trigger_on_enter is checked
+        if (triggerOnEnter && !triggerOnEnterStatus) {
+            showToast('Please select which status should trigger this automation', 'error');
             return;
         }
 
@@ -3925,7 +3936,8 @@ async function saveAutomation() {
                 actions,
                 enabled,
                 execution_order: order,
-                trigger_on_enter: triggerOnEnter
+                trigger_on_enter: triggerOnEnter,
+                trigger_on_enter_status: triggerOnEnterStatus || null
             })
         });
 
@@ -4151,10 +4163,20 @@ window.previousLogsPage = previousLogsPage;
 window.nextLogsPage = nextLogsPage;
 window.clearLogFilters = clearLogFilters;
 
+// Toggle status selector visibility
+function toggleEnterStatusSelector() {
+    const triggerOnEnter = document.getElementById('automation-trigger-on-enter').checked;
+    const statusSelector = document.getElementById('enter-status-selector');
+    if (statusSelector) {
+        statusSelector.style.display = triggerOnEnter ? 'block' : 'none';
+    }
+}
+
 window.deleteAutomation = deleteAutomation;
 window.openAutomationModal = openAutomationModal;
 window.editAutomation = editAutomation;
 window.closeAutomationModal = closeAutomationModal;
+window.toggleEnterStatusSelector = toggleEnterStatusSelector;
 window.nextWizardStep = nextWizardStep;
 window.previousWizardStep = previousWizardStep;
 window.toggleConditionMode = toggleConditionMode;
