@@ -1613,6 +1613,104 @@ app.get('/api/logs', ensureAuthenticated, async (req, res) => {
     }
 });
 
+// Get open subtasks report
+app.get('/api/reports/open-subtasks', ensureAuthenticated, async (req, res) => {
+    try {
+        const query = `
+            SELECT
+                c.id as client_id,
+                c.client_id as client_code,
+                c.client_name,
+                c.status,
+                c.sales_team,
+                c.fulfillment_ops,
+                s.id as subtask_id,
+                s.subtask_text,
+                s.assignee,
+                s.created_at as subtask_created_at,
+                u.name as created_by_name
+            FROM clients c
+            INNER JOIN subtasks s ON c.id = s.client_id
+            LEFT JOIN users u ON s.created_by = u.id
+            WHERE s.completed = false
+            ORDER BY s.created_at DESC
+        `;
+
+        const result = await pool.query(query);
+
+        // Group subtasks by client
+        const clientsMap = {};
+        result.rows.forEach(row => {
+            if (!clientsMap[row.client_id]) {
+                clientsMap[row.client_id] = {
+                    client_id: row.client_id,
+                    client_code: row.client_code,
+                    client_name: row.client_name,
+                    status: row.status,
+                    sales_team: row.sales_team,
+                    fulfillment_ops: row.fulfillment_ops,
+                    open_subtasks: []
+                };
+            }
+
+            clientsMap[row.client_id].open_subtasks.push({
+                subtask_id: row.subtask_id,
+                subtask_text: row.subtask_text,
+                assignee: row.assignee,
+                created_at: row.subtask_created_at,
+                created_by_name: row.created_by_name
+            });
+        });
+
+        const clients = Object.values(clientsMap);
+
+        // Calculate summary stats
+        const totalClients = clients.length;
+        const totalOpenSubtasks = result.rows.length;
+        const assignedSubtasks = result.rows.filter(r => r.assignee && r.assignee !== 'Unassigned').length;
+        const unassignedSubtasks = totalOpenSubtasks - assignedSubtasks;
+
+        // Group by assignee
+        const byAssignee = {};
+        result.rows.forEach(row => {
+            const assignee = row.assignee || 'Unassigned';
+            if (!byAssignee[assignee]) {
+                byAssignee[assignee] = {
+                    assignee,
+                    count: 0,
+                    clients: new Set()
+                };
+            }
+            byAssignee[assignee].count++;
+            byAssignee[assignee].clients.add(row.client_code);
+        });
+
+        const assigneeSummary = Object.values(byAssignee).map(a => ({
+            assignee: a.assignee,
+            count: a.count,
+            client_count: a.clients.size
+        })).sort((a, b) => b.count - a.count);
+
+        res.json({
+            success: true,
+            data: {
+                clients,
+                summary: {
+                    totalClients,
+                    totalOpenSubtasks,
+                    assignedSubtasks,
+                    unassignedSubtasks
+                },
+                byAssignee: assigneeSummary
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching open subtasks report:', error);
+        res.status(500).json({ error: 'Failed to fetch open subtasks report' });
+    }
+});
+
 // ==================== AUTOMATION MANAGEMENT ROUTES ====================
 
 // Get all automations

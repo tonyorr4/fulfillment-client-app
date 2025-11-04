@@ -2225,6 +2225,9 @@ async function loadReports() {
         // Load inbound dates report
         await loadInboundDates();
 
+        // Load open subtasks report
+        await loadOpenSubtasks();
+
     } catch (error) {
         console.error('Error loading reports:', error);
         showToast('Failed to load reports', 'error');
@@ -2552,6 +2555,157 @@ function renderInboundTimelineChart(weeklyData) {
             }
         }
     });
+}
+
+// Load open subtasks report
+async function loadOpenSubtasks() {
+    try {
+        const response = await fetch('/api/reports/open-subtasks', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch open subtasks report');
+        }
+
+        const result = await response.json();
+        const data = result.data;
+
+        // Update KPI cards
+        document.getElementById('kpi-open-clients').textContent = data.summary.totalClients;
+        document.getElementById('kpi-open-total').textContent = data.summary.totalOpenSubtasks;
+        document.getElementById('kpi-open-assigned').textContent = data.summary.assignedSubtasks;
+        document.getElementById('kpi-open-unassigned').textContent = data.summary.unassignedSubtasks;
+
+        // Render assignee breakdown
+        renderAssigneeBreakdown(data.byAssignee);
+
+        // Render clients table
+        renderOpenSubtasksTable(data.clients);
+
+    } catch (error) {
+        console.error('Error loading open subtasks report:', error);
+        showToast('Failed to load open subtasks report', 'error');
+    }
+}
+
+// Render assignee breakdown
+function renderAssigneeBreakdown(byAssignee) {
+    const container = document.getElementById('assignee-breakdown');
+    if (!container) return;
+
+    if (byAssignee.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-tertiary);">No open subtasks</div>';
+        return;
+    }
+
+    container.innerHTML = byAssignee.map(item => {
+        const isUnassigned = item.assignee === 'Unassigned';
+        const bgColor = isUnassigned ? '#FF9800' : '#2196F3';
+
+        return `
+            <div style="background: var(--bg-elevated); padding: 16px; border-radius: 8px; border-left: 4px solid ${bgColor};">
+                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                    ${item.assignee}
+                </div>
+                <div style="font-size: 24px; font-weight: 700; color: ${bgColor}; margin-bottom: 4px;">
+                    ${item.count}
+                </div>
+                <div style="font-size: 12px; color: var(--text-secondary);">
+                    ${item.client_count} client${item.client_count !== 1 ? 's' : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Render open subtasks table
+function renderOpenSubtasksTable(clients) {
+    const container = document.getElementById('open-subtasks-container');
+    if (!container) return;
+
+    if (clients.length === 0) {
+        container.innerHTML = `
+            <div style="padding: 40px; text-align: center; color: var(--text-tertiary);">
+                <i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 12px; opacity: 0.5;"></i>
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">All Clear!</div>
+                <div style="font-size: 14px;">No open subtasks found</div>
+            </div>
+        `;
+        return;
+    }
+
+    // Status label mapping
+    const statusMap = {
+        'new-request': { label: 'New Request', color: '#2196F3' },
+        'signing': { label: 'Signing', color: '#9C27B0' },
+        'in-discussion': { label: 'In Discussion', color: '#FF9800' },
+        'client-setup': { label: 'Client Setup', color: '#00BCD4' },
+        'setup-complete': { label: 'Setup Complete', color: '#4CAF50' },
+        'inbound': { label: 'Inbound', color: '#F44336' },
+        'complete': { label: 'Complete', color: '#8BC34A' },
+        'fulfilling': { label: 'Fulfilling', color: '#3F51B5' },
+        'not-pursuing': { label: 'Not Pursuing', color: '#607D8B' }
+    };
+
+    const html = clients.map(client => {
+        const status = statusMap[client.status] || { label: client.status, color: '#888' };
+
+        return `
+            <div style="background: var(--bg-elevated); padding: 20px; border-radius: 8px; margin-bottom: 16px; border-left: 4px solid ${status.color};">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                    <div>
+                        <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                            ${client.client_code} - ${client.client_name}
+                        </div>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <span style="
+                                display: inline-block;
+                                padding: 4px 12px;
+                                border-radius: 12px;
+                                font-size: 12px;
+                                font-weight: 600;
+                                background: ${status.color}22;
+                                color: ${status.color};
+                            ">${status.label}</span>
+                            ${client.sales_team ? `<span style="font-size: 13px; color: var(--text-secondary);"><i class="fas fa-user"></i> Sales: ${client.sales_team}</span>` : ''}
+                            ${client.fulfillment_ops ? `<span style="font-size: 13px; color: var(--text-secondary);"><i class="fas fa-user-cog"></i> Ops: ${client.fulfillment_ops}</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="background: #2196F3; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600;">
+                        ${client.open_subtasks.length} open task${client.open_subtasks.length !== 1 ? 's' : ''}
+                    </div>
+                </div>
+                <div style="margin-top: 12px;">
+                    ${client.open_subtasks.map(subtask => {
+                        const createdDate = new Date(subtask.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric'
+                        });
+                        const isUnassigned = !subtask.assignee || subtask.assignee === 'Unassigned';
+
+                        return `
+                            <div style="background: var(--bg-card); padding: 12px; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px;">
+                                <i class="far fa-square" style="color: var(--text-secondary); font-size: 16px;"></i>
+                                <div style="flex: 1;">
+                                    <div style="font-size: 14px; color: var(--text-primary); margin-bottom: 4px;">${subtask.subtask_text}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">
+                                        Created ${createdDate}
+                                        ${subtask.created_by_name ? ` by ${subtask.created_by_name}` : ''}
+                                    </div>
+                                </div>
+                                <div style="padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; ${isUnassigned ? 'background: #FF980022; color: #FF9800;' : 'background: #4CAF5022; color: #4CAF50;'}">
+                                    ${isUnassigned ? '⚠️ Unassigned' : subtask.assignee}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = html;
 }
 
 // Render status distribution bar chart
