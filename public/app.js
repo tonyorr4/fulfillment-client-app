@@ -1938,21 +1938,61 @@ function filterByStatus(status, buttonElement) {
     renderAllClients();
 }
 
-// Search filter
+// Search filter - searches ALL clients regardless of status filter
 function filterCards() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const cards = document.querySelectorAll('.card');
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+    const cardGrid = document.getElementById('cardGrid');
 
-    cards.forEach(card => {
-        const cardName = card.querySelector('.card-name').textContent.toLowerCase();
-        const cardId = card.querySelector('.card-id').textContent.toLowerCase();
+    if (!cardGrid) {
+        return;
+    }
 
-        if (cardName.includes(searchTerm) || cardId.includes(searchTerm)) {
-            card.style.display = 'block';
-        } else {
-            card.style.display = 'none';
-        }
+    // If no search term, show all clients based on current filter
+    if (!searchTerm) {
+        renderAllClients();
+        return;
+    }
+
+    // Clear the grid
+    cardGrid.innerHTML = '';
+
+    // Search through ALL clients (ignoring status filter)
+    const matchingClients = allClients.filter(client => {
+        const clientName = (client.client_name || '').toLowerCase();
+        const clientId = (client.client_id || '').toLowerCase();
+
+        return clientName.includes(searchTerm) || clientId.includes(searchTerm);
     });
+
+    // Render matching clients
+    matchingClients.forEach(client => {
+        const card = createClientCardElement(client);
+        cardGrid.appendChild(card);
+    });
+
+    // Show empty state if no matches
+    if (matchingClients.length === 0) {
+        cardGrid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-tertiary);">
+                <i class="fas fa-search" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                <p style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">No matches found</p>
+                <p style="font-size: 14px;">No clients match "${searchTerm}"</p>
+                <button onclick="showAllCards()" style="margin-top: 16px; padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer;">Clear Search</button>
+            </div>
+        `;
+    } else {
+        // Add notice that search results are across all statuses
+        const notice = document.createElement('div');
+        notice.style.cssText = 'grid-column: 1/-1; background: var(--info-light, #e3f2fd); border-left: 4px solid var(--info, #2196F3); padding: 12px 16px; margin-bottom: 16px; border-radius: 4px;';
+        notice.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <i class="fas fa-info-circle" style="color: var(--info, #2196F3);"></i>
+                <span style="flex: 1;">Showing ${matchingClients.length} result(s) from <strong>all statuses</strong></span>
+                <button onclick="showAllCards()" style="padding: 4px 12px; background: var(--info, #2196F3); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Clear</button>
+            </div>
+        `;
+        cardGrid.insertBefore(notice, cardGrid.firstChild);
+    }
 }
 
 function showAllCards() {
