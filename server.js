@@ -235,7 +235,7 @@ app.post('/api/auth/request-access', async (req, res) => {
             return res.status(400).json({ error: 'All fields are required' });
         }
 
-        const { createAccessRequest } = require('./database');
+        const { createAccessRequest } = require('./auth-config');
         const result = await createAccessRequest(googleId, email, name, department, reason);
 
         if (result.success) {
@@ -244,7 +244,8 @@ app.post('/api/auth/request-access', async (req, res) => {
                 message: 'Access request submitted successfully. You will be notified when approved.'
             });
         } else {
-            res.status(500).json({ error: 'Failed to submit access request' });
+            console.error('Access request failed:', result.error);
+            res.status(500).json({ error: result.error || 'Failed to submit access request' });
         }
     } catch (error) {
         console.error('Error submitting access request:', error);

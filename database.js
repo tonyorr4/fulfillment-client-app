@@ -423,40 +423,9 @@ async function deleteAttachment(attachmentId) {
     return result.rows[0];
 }
 
-// Helper function to find or create user
-// Access control helper functions
-async function createAccessRequest(googleId, email, name, department, reason) {
-    try {
-        const result = await pool.query(
-            `INSERT INTO access_requests (google_id, email, name, department, reason, app_name, status, created_at)
-             VALUES ($1, $2, $3, $4, $5, 'Sincro Fulfillment App', 'pending', NOW())
-             RETURNING *`,
-            [googleId, email, name, department, reason]
-        );
-
-        const accessRequest = result.rows[0];
-
-        // Send Slack notification (imported from slack-service.js)
-        const { sendAccessRequestNotification } = require('./slack-service');
-        sendAccessRequestNotification({
-            name: accessRequest.name,
-            email: accessRequest.email,
-            app_name: accessRequest.app_name,
-            google_id: accessRequest.google_id,
-            created_at: accessRequest.created_at
-        }).catch(err => {
-            // Log error but don't fail the request creation
-            console.error('Failed to send Slack notification:', err);
-        });
-
-        console.log('✓ Access request created for', email);
-
-        return { success: true, request: accessRequest };
-    } catch (error) {
-        console.error('Error creating access request:', error);
-        return { success: false, error: error.message };
-    }
-}
+// NOTE: createAccessRequest has been moved to auth-config.js
+// This ensures it uses the AUTH_DATABASE_URL pool (shared Sincro database)
+// instead of the fulfillment app's DATABASE_URL pool
 
 async function getAccessRequestStatus(googleId, email) {
     try {
@@ -495,6 +464,5 @@ module.exports = {
     getAttachmentsByClientId,
     getAttachmentById,
     deleteAttachment,
-    createAccessRequest,
     getAccessRequestStatus
 };

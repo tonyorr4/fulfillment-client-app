@@ -287,11 +287,67 @@ function checkAutoAdmin(req, res, next) {
     next();
 }
 
+// ==================== ACCESS REQUEST CREATION ====================
+
+/**
+ * Create access request for fulfillment_client_app
+ * This uses the AUTH database pool (separate from fulfillment data)
+ */
+async function createAccessRequest(googleId, email, name, department, reason) {
+    try {
+        // Get fulfillment_client_app id from apps table
+        const appResult = await pool.query(
+            'SELECT id, display_name FROM apps WHERE name = $1',
+            [APP_NAME]
+        );
+
+        if (appResult.rows.length === 0) {
+            throw new Error('Fulfillment app not found in apps table');
+        }
+
+        const app = appResult.rows[0];
+
+        // Insert access request into AUTH database
+        const result = await pool.query(
+            `INSERT INTO access_requests (google_id, email, name, department, reason, app_name, app_id, status, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', NOW())
+             RETURNING *`,
+            [googleId, email, name, department, reason, app.display_name, app.id]
+        );
+
+        console.log(`✓ Access request created for ${email} to ${app.display_name}`);
+
+        // Send Slack notification (non-blocking)
+        sendAccessRequestNotification({
+            name: result.rows[0].name,
+            email: result.rows[0].email,
+            app_name: result.rows[0].app_name,
+            google_id: result.rows[0].google_id,
+            created_at: result.rows[0].created_at
+        }).catch(err => {
+            // Log error but don't fail the request creation
+            console.error('Failed to send Slack notification:', err);
+        });
+
+        return {
+            success: true,
+            request: result.rows[0]
+        };
+    } catch (error) {
+        console.error('Error creating access request:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
 // ==================== EXPORTS ====================
 
 module.exports = {
     passport,
     ensureAuthenticated,
     checkAutoAdmin,
-    setDatabasePool
+    setDatabasePool,
+    createAccessRequest
 };
