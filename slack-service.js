@@ -1,12 +1,134 @@
 /**
  * Slack Service
- * Handles Slack API integration for fetching channel messages
+ * Handles Slack API integration for fetching channel messages and sending notifications
  */
 
 const axios = require('axios');
 
 const SLACK_API_BASE = 'https://slack.com/api';
 const SLACK_BOT_TOKEN = process.env.SLACK_BOT_TOKEN;
+
+/**
+ * Send Slack notification when a new access request is created
+ * @param {Object} requestData - Access request details
+ * @param {string} requestData.name - Name of person requesting access
+ * @param {string} requestData.email - Email of person requesting access
+ * @param {string} requestData.app_name - Name of the app they're requesting access to
+ * @param {string} requestData.google_id - Google ID of requester
+ * @param {Date} requestData.created_at - Timestamp of request
+ */
+const sendAccessRequestNotification = async (requestData) => {
+    // Check if Slack webhook URL is configured
+    if (!process.env.SLACK_WEBHOOK_URL) {
+        console.warn('Slack webhook URL not configured. Skipping notification.');
+        return { success: false, message: 'Slack webhook URL not configured' };
+    }
+
+    try {
+        const appUrl = process.env.APP_URL || 'http://localhost:3000';
+        const timestamp = new Date(requestData.created_at).toLocaleString();
+
+        // Create Slack message using Block Kit format
+        const slackMessage = {
+            text: `New Access Request: ${requestData.name} - ${requestData.app_name}`,
+            blocks: [
+                {
+                    type: "header",
+                    text: {
+                        type: "plain_text",
+                        text: "🔔 New Access Request Pending",
+                        emoji: true
+                    }
+                },
+                {
+                    type: "section",
+                    fields: [
+                        {
+                            type: "mrkdwn",
+                            text: `*Applicant Name:*\n${requestData.name}`
+                        },
+                        {
+                            type: "mrkdwn",
+                            text: `*Email:*\n${requestData.email}`
+                        },
+                        {
+                            type: "mrkdwn",
+                            text: `*App Name:*\n${requestData.app_name}`
+                        },
+                        {
+                            type: "mrkdwn",
+                            text: `*Request Time:*\n${timestamp}`
+                        }
+                    ]
+                },
+                {
+                    type: "section",
+                    text: {
+                        type: "mrkdwn",
+                        text: `*Google ID:* \`${requestData.google_id}\``
+                    }
+                },
+                {
+                    type: "divider"
+                },
+                {
+                    type: "section",
+                    text: {
+                        type: "mrkdwn",
+                        text: "Please review and approve/deny this request in the admin dashboard:"
+                    },
+                    accessory: {
+                        type: "button",
+                        text: {
+                            type: "plain_text",
+                            text: "Go to Admin Dashboard",
+                            emoji: true
+                        },
+                        url: process.env.SINCRO_ACCESS_URL || appUrl,
+                        action_id: "view_dashboard"
+                    }
+                },
+                {
+                    type: "context",
+                    elements: [
+                        {
+                            type: "mrkdwn",
+                            text: "_This is an automated notification from the Sincro Fulfillment Client App_"
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // Send message to Slack
+        const response = await fetch(process.env.SLACK_WEBHOOK_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(slackMessage)
+        });
+
+        if (response.ok) {
+            console.log('✓ Access request notification sent via Slack');
+            return {
+                success: true,
+                message: 'Notification sent successfully via Slack'
+            };
+        } else {
+            const errorText = await response.text();
+            throw new Error(`Slack API error: ${response.status} - ${errorText}`);
+        }
+
+    } catch (error) {
+        console.error('Error sending access request notification via Slack:', error);
+        return {
+            success: false,
+            error: error.message,
+            message: 'Failed to send notification via Slack'
+        };
+    }
+};
 
 /**
  * Convert client name to expected Slack channel name format
@@ -179,6 +301,7 @@ function formatMessagesForSummary(messages) {
 }
 
 module.exports = {
+    sendAccessRequestNotification,
     clientNameToChannelName,
     findChannelByName,
     autoMatchChannel,
