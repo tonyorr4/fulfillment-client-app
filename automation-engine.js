@@ -358,6 +358,8 @@ async function triggerAutomations(pool, event, clientId, clientData, userId = nu
                 const newStatus = clientData.status;
 
                 // If trigger_on_enter is enabled, check status transition rules
+                console.log(`🔍 [DEBUG] Checking automation "${automation.name}": triggerOnEnter=${triggerOnEnter}, triggerOnEnterStatus=${triggerOnEnterStatus}, oldStatus=${oldStatus}, newStatus=${newStatus}`);
+
                 if (triggerOnEnter && isStatusChangeEvent) {
                     // If status didn't change, skip
                     if (oldStatus === newStatus) {
@@ -371,6 +373,8 @@ async function triggerAutomations(pool, event, clientId, clientData, userId = nu
                         continue;
                     }
                 }
+
+                console.log(`✅ [DEBUG] Automation "${automation.name}" will execute - passed all checks`);
 
                 // Evaluate conditions
                 conditionsMet = evaluateConditions(automation.conditions, clientData);
