@@ -1,9 +1,10 @@
 // OAuth Authentication Configuration - Sincro Fulfillment App
-// Implements secure access control with manual approval for all users except Tony
+// Implements per-app access control with Sincro Access admin approval
+// Uses DUAL DATABASE pattern: DATABASE_URL for app data, AUTH_DATABASE_URL for users
 
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const { pool } = require('./database');
+const { Pool } = require('pg');
 require('dotenv').config();
 
 // OAuth Configuration
@@ -11,6 +12,27 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL;
 const AUTO_APPROVE_ADMIN_EMAIL = process.env.AUTO_ADMIN_EMAIL || 'tony.orr@easyship.com';
+const APP_NAME = 'fulfillment_client_app'; // Must match apps.name in database
+
+// Database pool for AUTH (separate from fulfillment data)
+let pool;
+
+function setDatabasePool(dbPool) {
+    pool = dbPool;
+}
+
+// Create separate pool for AUTH database if AUTH_DATABASE_URL is set
+if (process.env.AUTH_DATABASE_URL) {
+    pool = new Pool({
+        connectionString: process.env.AUTH_DATABASE_URL,
+        ssl: process.env.AUTH_DATABASE_URL.includes('rlwy.net') ? { rejectUnauthorized: false } : false
+    });
+    console.log('✓ Using separate AUTH database for OAuth (users, access_requests)');
+    console.log('  AUTH_DATABASE_URL:', process.env.AUTH_DATABASE_URL.substring(0, 50) + '...');
+} else {
+    console.log('⚠ AUTH_DATABASE_URL not set - using DATABASE_URL for both app and auth data');
+    console.log('  This is NOT recommended for apps with existing production data!');
+}
 
 // ==================== PASSPORT CONFIGURATION ====================
 
@@ -193,5 +215,6 @@ function checkAutoAdmin(req, res, next) {
 module.exports = {
     passport,
     ensureAuthenticated,
-    checkAutoAdmin
+    checkAutoAdmin,
+    setDatabasePool
 };
