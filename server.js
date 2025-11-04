@@ -1384,6 +1384,107 @@ app.get('/api/reports/monthly-summary', ensureAuthenticated, async (req, res) =>
     }
 });
 
+// Get inbound dates report
+app.get('/api/reports/inbound-dates', ensureAuthenticated, async (req, res) => {
+    try {
+        // Only include clients in these statuses: client-setup, setup-complete, inbound, complete
+        const allowedStatuses = ['client-setup', 'setup-complete', 'inbound', 'complete'];
+
+        // 1. Get all clients with upcoming inbound dates
+        const clientsQuery = await pool.query(`
+            SELECT
+                id,
+                client_id,
+                client_name,
+                status,
+                est_inbound_date,
+                sales_team,
+                fulfillment_ops,
+                (est_inbound_date - CURRENT_DATE) as days_until_inbound
+            FROM clients
+            WHERE status = ANY($1)
+              AND est_inbound_date IS NOT NULL
+              AND est_inbound_date >= CURRENT_DATE
+            ORDER BY est_inbound_date ASC
+        `, [allowedStatuses]);
+
+        const clients = clientsQuery.rows;
+
+        // 2. Calculate metrics
+        const totalClients = clients.length;
+
+        // Clients inbounding this week (next 7 days)
+        const thisWeekEnd = new Date();
+        thisWeekEnd.setDate(thisWeekEnd.getDate() + 7);
+        const thisWeek = clients.filter(c => {
+            const inboundDate = new Date(c.est_inbound_date);
+            return inboundDate <= thisWeekEnd;
+        }).length;
+
+        // Clients inbounding this month
+        const now = new Date();
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const thisMonth = clients.filter(c => {
+            const inboundDate = new Date(c.est_inbound_date);
+            return inboundDate <= endOfMonth;
+        }).length;
+
+        // Clients inbounding next 30 days
+        const next30Days = new Date();
+        next30Days.setDate(next30Days.getDate() + 30);
+        const next30 = clients.filter(c => {
+            const inboundDate = new Date(c.est_inbound_date);
+            return inboundDate <= next30Days;
+        }).length;
+
+        // Average days until inbound
+        const avgDaysUntilInbound = clients.length > 0
+            ? Math.round(clients.reduce((sum, c) => sum + parseInt(c.days_until_inbound), 0) / clients.length)
+            : 0;
+
+        // 3. Group clients by week
+        const clientsByWeek = {};
+        clients.forEach(client => {
+            const date = new Date(client.est_inbound_date);
+            // Get ISO week number
+            const yearStart = new Date(date.getFullYear(), 0, 1);
+            const weekNum = Math.ceil((((date - yearStart) / 86400000) + yearStart.getDay() + 1) / 7);
+            const weekKey = `${date.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
+
+            if (!clientsByWeek[weekKey]) {
+                clientsByWeek[weekKey] = {
+                    week: weekKey,
+                    count: 0,
+                    clients: []
+                };
+            }
+
+            clientsByWeek[weekKey].count++;
+            clientsByWeek[weekKey].clients.push(client);
+        });
+
+        const clientsByWeekArray = Object.values(clientsByWeek).sort((a, b) => a.week.localeCompare(b.week));
+
+        // 4. Send response
+        res.json({
+            success: true,
+            data: {
+                totalClients,
+                thisWeek,
+                thisMonth,
+                next30Days,
+                avgDaysUntilInbound,
+                clientsByWeek: clientsByWeekArray,
+                clients
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching inbound dates report:', error);
+        res.status(500).json({ error: 'Failed to fetch inbound dates report' });
+    }
+});
+
 // ==================== AUTOMATION MANAGEMENT ROUTES ====================
 
 // Get all automations

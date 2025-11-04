@@ -2189,7 +2189,8 @@ let reportCharts = {
     clientTypeChart: null,
     trendChart: null,
     approvalRateChart: null,
-    autoApprovalRateChart: null
+    autoApprovalRateChart: null,
+    inboundTimelineChart: null
 };
 
 // Load reports data and render charts
@@ -2220,6 +2221,9 @@ async function loadReports() {
 
         // Load monthly summary
         await loadMonthlySummary();
+
+        // Load inbound dates report
+        await loadInboundDates();
 
     } catch (error) {
         console.error('Error loading reports:', error);
@@ -2261,6 +2265,184 @@ async function loadMonthlySummary() {
         console.error('Error loading monthly summary:', error);
         showToast('Failed to load monthly summary', 'error');
     }
+}
+
+// Load inbound dates report data
+async function loadInboundDates() {
+    try {
+        const response = await fetch('/api/reports/inbound-dates', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch inbound dates report');
+        }
+
+        const result = await response.json();
+        const data = result.data;
+
+        // Update KPI cards
+        document.getElementById('kpi-ib-total').textContent = data.totalClients;
+        document.getElementById('kpi-ib-week').textContent = data.thisWeek;
+        document.getElementById('kpi-ib-month').textContent = data.thisMonth;
+        document.getElementById('kpi-ib-30days').textContent = data.next30Days;
+        document.getElementById('kpi-ib-avg').textContent = data.avgDaysUntilInbound;
+
+        // Render table
+        renderInboundDatesTable(data.clients);
+
+        // Render timeline chart
+        renderInboundTimelineChart(data.clientsByWeek);
+
+    } catch (error) {
+        console.error('Error loading inbound dates report:', error);
+        showToast('Failed to load inbound dates report', 'error');
+    }
+}
+
+// Render inbound dates table
+function renderInboundDatesTable(clients) {
+    const tbody = document.getElementById('inbound-dates-tbody');
+    if (!tbody) return;
+
+    if (clients.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="padding: 40px; text-align: center; color: var(--text-tertiary);">
+                    <i class="fas fa-calendar-times" style="font-size: 24px; margin-bottom: 12px;"></i>
+                    <div>No upcoming inbound dates found</div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    // Status label and color mapping
+    const statusMap = {
+        'client-setup': { label: 'Client Setup', color: '#2196F3' },
+        'setup-complete': { label: 'Setup Complete', color: '#4CAF50' },
+        'inbound': { label: 'Inbound', color: '#FF9800' },
+        'complete': { label: 'Complete', color: '#8BC34A' }
+    };
+
+    tbody.innerHTML = clients.map((client, index) => {
+        const status = statusMap[client.status] || { label: client.status, color: '#888' };
+        const date = new Date(client.est_inbound_date);
+        const formattedDate = date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+
+        // Color code days until inbound
+        let daysColor = '#4CAF50'; // green for >14 days
+        if (client.days_until_inbound <= 7) {
+            daysColor = '#F44336'; // red for <=7 days
+        } else if (client.days_until_inbound <= 14) {
+            daysColor = '#FF9800'; // orange for 8-14 days
+        }
+
+        return `
+            <tr style="border-bottom: 1px solid var(--border-color); ${index % 2 === 0 ? 'background: var(--bg-elevated);' : ''}">
+                <td style="padding: 12px; font-size: 14px; color: var(--text-primary);">${client.client_id || '--'}</td>
+                <td style="padding: 12px; font-size: 14px; font-weight: 500; color: var(--text-primary);">${client.client_name || '--'}</td>
+                <td style="padding: 12px;">
+                    <span style="
+                        display: inline-block;
+                        padding: 4px 12px;
+                        border-radius: 12px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        background: ${status.color}22;
+                        color: ${status.color};
+                    ">${status.label}</span>
+                </td>
+                <td style="padding: 12px; font-size: 14px; color: var(--text-primary);">${formattedDate}</td>
+                <td style="padding: 12px; font-size: 14px; font-weight: 600; color: ${daysColor};">
+                    ${client.days_until_inbound} ${client.days_until_inbound === 1 ? 'day' : 'days'}
+                </td>
+                <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.sales_team || '--'}</td>
+                <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.fulfillment_ops || '--'}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Render inbound timeline chart
+function renderInboundTimelineChart(weeklyData) {
+    const ctx = document.getElementById('inboundTimelineChart');
+    if (!ctx) return;
+
+    // Destroy existing chart if it exists
+    if (reportCharts.inboundTimelineChart) {
+        reportCharts.inboundTimelineChart.destroy();
+    }
+
+    if (!weeklyData || weeklyData.length === 0) {
+        ctx.parentElement.innerHTML = '<p style="text-align: center; color: var(--text-tertiary); padding: 40px;">No data available</p>';
+        return;
+    }
+
+    // Prepare data for chart
+    const labels = weeklyData.map(w => w.week);
+    const counts = weeklyData.map(w => w.count);
+
+    reportCharts.inboundTimelineChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Clients Inbound',
+                data: counts,
+                backgroundColor: '#2196F3',
+                borderColor: '#1976D2',
+                borderWidth: 1,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.parsed.y} client${context.parsed.y !== 1 ? 's' : ''}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        font: { size: 11 },
+                        color: '#888'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: { size: 11 },
+                        color: '#888'
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
 }
 
 // Render status distribution bar chart

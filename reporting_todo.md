@@ -258,7 +258,103 @@ GROUP BY status;
 
 ---
 
-### 4.2 Client Timeline View
+### 4.2 Estimated Inbound Date Report ⭐ NEW
+**What:** Track upcoming client inbound dates for capacity planning
+**Audience:** Operations, Fulfillment Ops, Management
+**Status:** 🎯 REQUESTED - High Priority
+
+**Scope:**
+- [ ] Only show clients in these statuses:
+  - `client-setup`
+  - `setup-complete`
+  - `inbound`
+  - `complete`
+- [ ] Exclude all other statuses (new-request, signing, in-discussion, not-pursuing, fulfilling)
+
+**Metrics:**
+- [ ] Total clients with upcoming inbound dates (filtered by status)
+- [ ] Clients inbounding this week
+- [ ] Clients inbounding this month
+- [ ] Clients inbounding next 30 days
+- [ ] Average days until inbound (from today)
+
+**Visualization:**
+- [ ] Timeline view showing inbound dates (by week or month)
+- [ ] Calendar heatmap showing capacity by day
+- [ ] Table view with sortable columns:
+  - Client ID
+  - Client Name
+  - Current Status
+  - Est. Inbound Date
+  - Days Until Inbound
+  - Sales Team
+  - Fulfillment Ops
+
+**Filters:**
+- [ ] Date range selector (This Week, This Month, Next 30 Days, Next 60 Days, Custom)
+- [ ] Filter by status (within the allowed statuses)
+- [ ] Filter by fulfillment ops
+- [ ] Filter by sales team
+
+**Use Cases:**
+- "Show me all clients inbounding in the next 2 weeks"
+- "How many clients are we expecting this month?"
+- "Which fulfillment ops person has the most upcoming inbounds?"
+- "Are there capacity issues on any specific days?"
+
+**API Endpoint:**
+```javascript
+GET /api/reports/inbound-dates
+// Query params: ?dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD&status=&ops=
+
+// Returns:
+{
+  totalClients: 15,
+  thisWeek: 3,
+  thisMonth: 8,
+  next30Days: 12,
+  avgDaysUntilInbound: 18,
+  clientsByWeek: [
+    { week: "2025-W45", count: 3, clients: [...] },
+    { week: "2025-W46", count: 5, clients: [...] }
+  ],
+  clients: [
+    {
+      id: 1,
+      client_id: "FC-001",
+      client_name: "Acme Corp",
+      status: "setup-complete",
+      est_inbound_date: "2025-11-15",
+      days_until_inbound: 12,
+      sales_team: "John",
+      fulfillment_ops: "Ian"
+    }
+  ]
+}
+```
+
+**Implementation Notes:**
+```sql
+-- Only include these statuses
+SELECT *
+FROM clients
+WHERE status IN ('client-setup', 'setup-complete', 'inbound', 'complete')
+  AND est_inbound_date IS NOT NULL
+  AND est_inbound_date >= CURRENT_DATE
+ORDER BY est_inbound_date ASC;
+
+-- Calculate days until inbound
+SELECT
+  *,
+  (est_inbound_date - CURRENT_DATE) as days_until_inbound
+FROM clients
+WHERE status IN ('client-setup', 'setup-complete', 'inbound', 'complete')
+  AND est_inbound_date >= CURRENT_DATE;
+```
+
+---
+
+### 4.3 Client Timeline View (Future)
 **What:** Gantt chart / timeline of client journey
 **Audience:** Everyone
 
