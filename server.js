@@ -500,7 +500,7 @@ app.patch('/api/clients/:id/status', ensureAuthenticated, blockSalesRole, async 
         }
 
         // Trigger automations for status_changed event
-        console.log(`🤖 Triggering automations for status_changed event (${oldStatus} → ${status})...`);
+        console.log(`🤖 [v2.0-FIXED] Triggering automations for status_changed event (${oldStatus} → ${status})...`);
         const automationSummary = await triggerAutomations(
             pool,
             'status_changed',
