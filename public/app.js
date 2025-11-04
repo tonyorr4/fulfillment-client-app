@@ -4037,7 +4037,8 @@ function renderLogs(data) {
         'subtask_created': { label: 'Subtask Created', color: '#00BCD4', icon: 'fa-tasks' },
         'subtask_toggled': { label: 'Subtask Toggled', color: '#3F51B5', icon: 'fa-check-square' },
         'subtask_assignee_changed': { label: 'Assignee Changed', color: '#795548', icon: 'fa-user' },
-        'comment_added': { label: 'Comment Added', color: '#607D8B', icon: 'fa-comment' }
+        'comment_added': { label: 'Comment Added', color: '#607D8B', icon: 'fa-comment' },
+        'automation_field_update': { label: 'Automation Update', color: '#E91E63', icon: 'fa-robot' }
     };
 
     tbody.innerHTML = data.logs.map((log, index) => {
@@ -4066,6 +4067,11 @@ function renderLogs(data) {
                 detailsText = log.details.completed ? 'Completed' : 'Uncompleted';
             } else if (log.action === 'comment_added') {
                 detailsText = log.details.comment_text ? log.details.comment_text.substring(0, 50) + '...' : 'Comment added';
+            } else if (log.action === 'automation_field_update') {
+                const automation = log.details.automation_name || 'Automation';
+                const field = log.details.field || 'field';
+                const value = log.details.new_value !== undefined ? log.details.new_value : 'N/A';
+                detailsText = `${automation}: ${field} = ${value}`;
             }
         }
 
