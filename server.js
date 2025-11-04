@@ -1410,6 +1410,26 @@ app.get('/api/reports/inbound-dates', ensureAuthenticated, async (req, res) => {
 
         const clients = clientsQuery.rows;
 
+        // Get clients with PAST inbound dates (overdue)
+        const overdueQuery = await pool.query(`
+            SELECT
+                id,
+                client_id,
+                client_name,
+                status,
+                est_inbound_date,
+                sales_team,
+                fulfillment_ops,
+                (CURRENT_DATE - est_inbound_date) as days_overdue
+            FROM clients
+            WHERE status = ANY($1)
+              AND est_inbound_date IS NOT NULL
+              AND est_inbound_date < CURRENT_DATE
+            ORDER BY est_inbound_date ASC
+        `, [allowedStatuses]);
+
+        const overdueClients = overdueQuery.rows;
+
         // 2. Calculate metrics
         const totalClients = clients.length;
 
@@ -1472,10 +1492,12 @@ app.get('/api/reports/inbound-dates', ensureAuthenticated, async (req, res) => {
                 totalClients,
                 thisWeek,
                 thisMonth,
-                next30Days,
+                next30Days: next30,
                 avgDaysUntilInbound,
+                overdueCount: overdueClients.length,
                 clientsByWeek: clientsByWeekArray,
-                clients
+                clients,
+                overdueClients
             }
         });
 

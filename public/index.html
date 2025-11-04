@@ -2201,6 +2201,38 @@
                         <div id="kpi-ib-avg" style="font-size: 32px; font-weight: 700; color: #9C27B0; margin-bottom: 8px;">--</div>
                         <div style="font-size: 14px; color: #888;">Until inbound</div>
                     </div>
+
+                    <!-- Overdue IB Dates -->
+                    <div style="background: var(--bg-card); padding: 24px; border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); border-left: 4px solid #F44336;">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Overdue</div>
+                        <div id="kpi-ib-overdue" style="font-size: 32px; font-weight: 700; color: #F44336; margin-bottom: 8px;">--</div>
+                        <div style="font-size: 14px; color: #888;">Past IB dates</div>
+                    </div>
+                </div>
+
+                <!-- Overdue Clients Section -->
+                <div id="overdue-section" style="display: none; background: #FFF3E0; padding: 20px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #F44336;">
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #D32F2F;">
+                        <i class="fas fa-exclamation-triangle"></i> Clients with Past IB Dates (Need Update)
+                    </h3>
+                    <p style="font-size: 14px; color: #666; margin-bottom: 16px;">These clients have IB dates that have passed. Please review and update their estimated inbound dates.</p>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+                            <thead>
+                                <tr style="background: #FFEBEE; border-bottom: 2px solid #EF9A9A;">
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Client ID</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Client Name</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Status</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Est. IB Date</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Days Overdue</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Sales Team</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: #C62828;">Fulfillment Ops</th>
+                                </tr>
+                            </thead>
+                            <tbody id="overdue-dates-tbody">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- Inbound Date Table -->

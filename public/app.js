@@ -2287,11 +2287,19 @@ async function loadInboundDates() {
         document.getElementById('kpi-ib-month').textContent = data.thisMonth;
         document.getElementById('kpi-ib-30days').textContent = data.next30Days;
         document.getElementById('kpi-ib-avg').textContent = data.avgDaysUntilInbound;
+        document.getElementById('kpi-ib-overdue').textContent = data.overdueCount;
 
-        // Render table
+        // Show/hide overdue section
+        const overdueSection = document.getElementById('overdue-section');
+        if (data.overdueClients && data.overdueClients.length > 0) {
+            overdueSection.style.display = 'block';
+            renderOverdueDatesTable(data.overdueClients);
+        } else {
+            overdueSection.style.display = 'none';
+        }
+
+        // Render tables and charts
         renderInboundDatesTable(data.clients);
-
-        // Render timeline chart
         renderInboundTimelineChart(data.clientsByWeek);
 
     } catch (error) {
@@ -2360,6 +2368,58 @@ function renderInboundDatesTable(clients) {
                 <td style="padding: 12px; font-size: 14px; color: var(--text-primary);">${formattedDate}</td>
                 <td style="padding: 12px; font-size: 14px; font-weight: 600; color: ${daysColor};">
                     ${client.days_until_inbound} ${client.days_until_inbound === 1 ? 'day' : 'days'}
+                </td>
+                <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.sales_team || '--'}</td>
+                <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.fulfillment_ops || '--'}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Render overdue dates table
+function renderOverdueDatesTable(clients) {
+    const tbody = document.getElementById('overdue-dates-tbody');
+    if (!tbody) return;
+
+    if (clients.length === 0) {
+        return;
+    }
+
+    // Status label and color mapping
+    const statusMap = {
+        'client-setup': { label: 'Client Setup', color: '#2196F3' },
+        'setup-complete': { label: 'Setup Complete', color: '#4CAF50' },
+        'inbound': { label: 'Inbound', color: '#FF9800' },
+        'complete': { label: 'Complete', color: '#8BC34A' }
+    };
+
+    tbody.innerHTML = clients.map((client, index) => {
+        const status = statusMap[client.status] || { label: client.status, color: '#888' };
+        const date = new Date(client.est_inbound_date);
+        const formattedDate = date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+
+        return `
+            <tr style="border-bottom: 1px solid #FFCDD2; ${index % 2 === 0 ? 'background: #FFF;' : 'background: #FFEBEE;'}">
+                <td style="padding: 12px; font-size: 14px; color: var(--text-primary);">${client.client_id || '--'}</td>
+                <td style="padding: 12px; font-size: 14px; font-weight: 500; color: var(--text-primary);">${client.client_name || '--'}</td>
+                <td style="padding: 12px;">
+                    <span style="
+                        display: inline-block;
+                        padding: 4px 12px;
+                        border-radius: 12px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        background: ${status.color}22;
+                        color: ${status.color};
+                    ">${status.label}</span>
+                </td>
+                <td style="padding: 12px; font-size: 14px; color: var(--text-primary);">${formattedDate}</td>
+                <td style="padding: 12px; font-size: 14px; font-weight: 700; color: #D32F2F;">
+                    ${client.days_overdue} ${client.days_overdue === 1 ? 'day' : 'days'} overdue
                 </td>
                 <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.sales_team || '--'}</td>
                 <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.fulfillment_ops || '--'}</td>
