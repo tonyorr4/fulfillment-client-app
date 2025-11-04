@@ -2940,7 +2940,13 @@ async function editAutomation(automationId) {
                     const actionItems = document.querySelectorAll('.action-item');
                     const lastAction = actionItems[actionItems.length - 1];
 
-                    lastAction.querySelector('.action-field').value = action.field || '';
+                    const fieldSelect = lastAction.querySelector('.action-field');
+                    fieldSelect.value = action.field || '';
+
+                    // Update the value input type based on field (dropdown for users, text for others)
+                    updateActionValueInput(fieldSelect);
+
+                    // Set the value after updating input type
                     lastAction.querySelector('.action-value').value = action.value || '';
 
                 } else if (action.type === 'create_subtask') {
@@ -3172,14 +3178,16 @@ function addAction(actionType) {
                 <div class="action-item-body">
                     <div class="form-group">
                         <label>Field</label>
-                        <select class="action-field">
+                        <select class="action-field" onchange="updateActionValueInput(this)">
                             <option value="">-- Select field --</option>
                             ${writableFields.map(f => `<option value="${f.value}">${f.label}</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Value</label>
-                        <input type="text" class="action-value" placeholder="Enter value">
+                        <div class="action-value-container">
+                            <input type="text" class="action-value" placeholder="Enter value">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3214,7 +3222,10 @@ function addAction(actionType) {
                     </div>
                     <div class="form-group assignee-static-group" style="display: none;">
                         <label>Person Name</label>
-                        <input type="text" class="assignee-static" placeholder="Enter person name">
+                        <select class="assignee-static">
+                            <option value="">-- Select user --</option>
+                            ${allUsers.map(user => `<option value="${user.name}">${user.name}</option>`).join('')}
+                        </select>
                     </div>
                     <div class="form-group">
                         <label class="checkbox-label">
@@ -3233,6 +3244,39 @@ function addAction(actionType) {
 // Remove action
 function removeAction(actionId) {
     document.getElementById(actionId).remove();
+}
+
+// Update action value input based on selected field
+function updateActionValueInput(fieldSelect) {
+    const actionItem = fieldSelect.closest('.action-item');
+    const container = actionItem.querySelector('.action-value-container');
+    const selectedField = fieldSelect.value;
+
+    // User fields that should use dropdown
+    const userFields = ['fulfillment_ops', 'sales_team'];
+
+    if (userFields.includes(selectedField)) {
+        // Replace with user dropdown
+        const currentValue = container.querySelector('.action-value')?.value || '';
+
+        const userOptions = allUsers.map(user =>
+            `<option value="${user.name}" ${user.name === currentValue ? 'selected' : ''}>${user.name}</option>`
+        ).join('');
+
+        container.innerHTML = `
+            <select class="action-value">
+                <option value="">-- Select user --</option>
+                ${userOptions}
+            </select>
+        `;
+    } else {
+        // Use text input for non-user fields
+        const currentValue = container.querySelector('.action-value')?.value || '';
+
+        container.innerHTML = `
+            <input type="text" class="action-value" placeholder="Enter value" value="${currentValue}">
+        `;
+    }
 }
 
 // Toggle assignee type (field vs static)
