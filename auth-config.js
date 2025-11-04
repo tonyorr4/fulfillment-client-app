@@ -5,6 +5,7 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { Pool } = require('pg');
+const { sendAccessRequestNotification } = require('./slack-service');
 require('dotenv').config();
 
 // OAuth Configuration
@@ -167,32 +168,108 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
 // ==================== MIDDLEWARE ====================
 
 /**
- * Middleware to ensure user is authenticated and approved
+ * Middleware to ensure user is authenticated and has access to fulfillment_client_app
  * Checks database on EVERY request to verify user still has access
  */
 async function ensureAuthenticated(req, res, next) {
     // Check if user is authenticated via Passport (OAuth)
     if (req.isAuthenticated && req.isAuthenticated()) {
-        // Verify user still exists and is approved in database
         try {
-            const result = await pool.query(
+            // Verify user still exists and is approved
+            const userResult = await pool.query(
                 'SELECT * FROM users WHERE id = $1 AND approved = TRUE',
                 [req.user.id]
             );
 
-            if (result.rows.length === 0) {
+            if (userResult.rows.length === 0) {
                 req.logout((err) => {
                     if (err) console.error('Logout error:', err);
                 });
                 return res.status(401).json({ error: 'User no longer has access' });
             }
 
-            // Update req.user with fresh data from database
-            req.user = result.rows[0];
+            // Verify user still has access to fulfillment_client_app
+            const appResult = await pool.query(
+                'SELECT id FROM apps WHERE name = $1 AND active = TRUE',
+                [APP_NAME]
+            );
+
+            if (appResult.rows.length === 0) {
+                return res.status(500).json({ error: 'App configuration error' });
+            }
+
+            const appId = appResult.rows[0].id;
+
+            const accessResult = await pool.query(
+                `SELECT role FROM user_app_access
+                 WHERE user_id = $1 AND app_id = $2 AND active = TRUE`,
+                [req.user.id, appId]
+            );
+
+            if (accessResult.rows.length === 0) {
+                req.logout((err) => {
+                    if (err) console.error('Logout error:', err);
+                });
+                return res.status(403).json({ error: 'Access to Fulfillment App has been revoked' });
+            }
+
+            // Update req.user with fresh data
+            req.user = userResult.rows[0];
+            req.user.app_role = accessResult.rows[0].role;
+
             return next();
         } catch (error) {
-            console.error('Error verifying user:', error);
+            console.error('Error verifying user access:', error);
             return res.status(500).json({ error: 'Authentication verification failed' });
+        }
+    }
+
+    // Check if user has valid JWT token
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (token) {
+        const jwt = require('jsonwebtoken');
+        const JWT_SECRET = process.env.JWT_SECRET || 'change-this-in-production';
+
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+
+            // Verify user still has access in database
+            const userResult = await pool.query(
+                'SELECT * FROM users WHERE id = $1 AND approved = TRUE',
+                [decoded.userId]
+            );
+
+            if (userResult.rows.length === 0) {
+                return res.status(401).json({ error: 'User no longer has access' });
+            }
+
+            // Verify app access
+            const appResult = await pool.query(
+                'SELECT id FROM apps WHERE name = $1 AND active = TRUE',
+                [APP_NAME]
+            );
+
+            if (appResult.rows.length > 0) {
+                const appId = appResult.rows[0].id;
+
+                const accessResult = await pool.query(
+                    `SELECT role FROM user_app_access
+                     WHERE user_id = $1 AND app_id = $2 AND active = TRUE`,
+                    [decoded.userId, appId]
+                );
+
+                if (accessResult.rows.length === 0) {
+                    return res.status(403).json({ error: 'Access to Fulfillment App has been revoked' });
+                }
+
+                req.user = userResult.rows[0];
+                req.user.app_role = accessResult.rows[0].role;
+                return next();
+            }
+        } catch (error) {
+            return res.status(403).json({ error: 'Invalid or expired token' });
         }
     }
 

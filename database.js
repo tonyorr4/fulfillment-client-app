@@ -436,30 +436,20 @@ async function createAccessRequest(googleId, email, name, department, reason) {
 
         const accessRequest = result.rows[0];
 
-        // Send email notification via Sincro Access webhook
-        // Don't fail the access request if notification fails
-        if (process.env.SINCRO_ACCESS_URL) {
-            try {
-                const notificationResponse = await fetch(`${process.env.SINCRO_ACCESS_URL}/api/notify-access-request`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ requestId: accessRequest.id })
-                });
+        // Send Slack notification (imported from slack-service.js)
+        const { sendAccessRequestNotification } = require('./slack-service');
+        sendAccessRequestNotification({
+            name: accessRequest.name,
+            email: accessRequest.email,
+            app_name: accessRequest.app_name,
+            google_id: accessRequest.google_id,
+            created_at: accessRequest.created_at
+        }).catch(err => {
+            // Log error but don't fail the request creation
+            console.error('Failed to send Slack notification:', err);
+        });
 
-                if (notificationResponse.ok) {
-                    const notificationResult = await notificationResponse.json();
-                    console.log('✓ Email notification sent for access request:', notificationResult.messageId);
-                } else {
-                    console.warn('⚠ Failed to send email notification:', await notificationResponse.text());
-                }
-            } catch (notificationError) {
-                console.warn('⚠ Error sending email notification:', notificationError.message);
-            }
-        } else {
-            console.warn('⚠ SINCRO_ACCESS_URL not configured. Email notification skipped.');
-        }
+        console.log('✓ Access request created for', email);
 
         return { success: true, request: accessRequest };
     } catch (error) {
