@@ -153,12 +153,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ==================== PERMISSION MIDDLEWARE ====================
 
-// Middleware to block Sales users from admin-only actions
+// Middleware to block Sales and CSM users from admin-only actions
 const blockSalesRole = (req, res, next) => {
-    if (req.user && req.user.role === 'Sales') {
+    if (req.user && (req.user.role === 'Sales' || req.user.role === 'CSM')) {
         return res.status(403).json({
             error: 'Access denied',
-            message: 'Sales users do not have permission to perform this action'
+            message: 'Sales and CSM users do not have permission to perform this action'
         });
     }
     next();

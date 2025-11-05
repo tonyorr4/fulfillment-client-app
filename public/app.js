@@ -718,16 +718,16 @@ function populateClientDetailModal(client) {
 
 // Apply role-based permissions to UI elements
 function applyRoleBasedPermissions() {
-    // Check if current user is Sales
-    const isSalesRole = currentUser && currentUser.role === 'Sales';
+    // Check if current user is Sales or CSM
+    const isSalesRole = currentUser && (currentUser.role === 'Sales' || currentUser.role === 'CSM');
 
-    // Hide Edit Details button for Sales users
+    // Hide Edit Details button for Sales and CSM users
     const editButton = document.getElementById('editButton');
     if (editButton) {
         editButton.style.display = isSalesRole ? 'none' : 'block';
     }
 
-    // Hide status dropdown for Sales users
+    // Hide status dropdown for Sales and CSM users
     const statusSelect = document.getElementById('clientStatusSelect');
     if (statusSelect) {
         if (isSalesRole) {
@@ -741,7 +741,7 @@ function applyRoleBasedPermissions() {
         }
     }
 
-    // Hide approval dropdown for Sales users
+    // Hide approval dropdown for Sales and CSM users
     const approvalSelect = document.getElementById('clientApprovalSelect');
     if (approvalSelect) {
         if (isSalesRole) {
@@ -1899,9 +1899,9 @@ function showToast(message, type = 'success') {
 async function openNewRequestModal() {
     document.getElementById('newRequestModal').classList.add('active');
 
-    // Fetch Admin and Sales users for dropdown
+    // Fetch Admin, Sales, and CSM users for dropdown
     try {
-        const response = await fetch('/api/users/by-role?roles=Admin,Sales', {
+        const response = await fetch('/api/users/by-role?roles=Admin,Sales,CSM', {
             credentials: 'include'
         });
         const data = await response.json();
