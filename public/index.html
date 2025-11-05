@@ -540,6 +540,10 @@
             background: linear-gradient(135deg, #10B981 0%, #059669 100%);
         }
 
+        .avatar.csm {
+            background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);
+        }
+
         .card-stats {
             display: flex;
             gap: 12px;
@@ -2250,11 +2254,12 @@
                                     <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Days Until</th>
                                     <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Sales Team</th>
                                     <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Fulfillment Ops</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">CSM</th>
                                 </tr>
                             </thead>
                             <tbody id="inbound-dates-tbody">
                                 <tr>
-                                    <td colspan="7" style="padding: 40px; text-align: center; color: var(--text-tertiary);">
+                                    <td colspan="8" style="padding: 40px; text-align: center; color: var(--text-tertiary);">
                                         <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 12px;"></i>
                                         <div>Loading inbound dates...</div>
                                     </td>
@@ -2296,6 +2301,7 @@
                                     <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Days Overdue</th>
                                     <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Sales Team</th>
                                     <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">Fulfillment Ops</th>
+                                    <th style="padding: 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary);">CSM</th>
                                 </tr>
                             </thead>
                             <tbody id="overdue-dates-tbody">
@@ -2523,7 +2529,12 @@
                                 <option value="">Loading sales team members...</option>
                             </select>
                         </div>
-                        <div class="form-group"></div>
+                        <div class="form-group">
+                            <label>CSM (Optional)</label>
+                            <select name="csm">
+                                <option value="">Select CSM (Optional)...</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="form-row">
@@ -2755,6 +2766,11 @@
                             <div class="detail-field" style="margin-top: 12px;">
                                 <div class="detail-field-label">Fulfillment Ops</div>
                                 <div class="detail-field-value" id="detailFulfillmentOps">-</div>
+                            </div>
+
+                            <div class="detail-field" style="margin-top: 12px;">
+                                <div class="detail-field-label">CSM</div>
+                                <div class="detail-field-value" id="detailCSM">-</div>
                             </div>
                         </div>
 

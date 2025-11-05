@@ -68,13 +68,13 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
     async (accessToken, refreshToken, profile, done) => {
         try {
             const googleId = profile.id;
-            const email = profile.emails[0].value;
+            const email = profile.emails[0].value.toLowerCase(); // Normalize to lowercase
             const name = profile.displayName;
             const picture = profile.photos && profile.photos[0] ? profile.photos[0].value : null;
 
-            // Check if user exists (by Google ID or email)
+            // Check if user exists (by Google ID or email - case insensitive)
             const userResult = await pool.query(
-                'SELECT * FROM users WHERE google_id = $1 OR email = $2',
+                'SELECT * FROM users WHERE google_id = $1 OR LOWER(email) = LOWER($2)',
                 [googleId, email]
             );
 
@@ -124,7 +124,7 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
 
                 // All other users - check if they have a pending access request
                 const accessRequestResult = await pool.query(
-                    'SELECT * FROM access_requests WHERE google_id = $1 OR email = $2 ORDER BY created_at DESC LIMIT 1',
+                    'SELECT * FROM access_requests WHERE google_id = $1 OR LOWER(email) = LOWER($2) ORDER BY created_at DESC LIMIT 1',
                     [googleId, email]
                 );
 
@@ -295,6 +295,9 @@ function checkAutoAdmin(req, res, next) {
  */
 async function createAccessRequest(googleId, email, name, department, reason) {
     try {
+        // Normalize email to lowercase
+        const normalizedEmail = email.toLowerCase();
+
         // Get fulfillment_client_app id from apps table
         const appResult = await pool.query(
             'SELECT id, display_name FROM apps WHERE name = $1',
@@ -312,7 +315,7 @@ async function createAccessRequest(googleId, email, name, department, reason) {
             `INSERT INTO access_requests (google_id, email, name, department, reason, app_name, app_id, status, created_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', NOW())
              RETURNING *`,
-            [googleId, email, name, department, reason, app.display_name, app.id]
+            [googleId, normalizedEmail, name, department, reason, app.display_name, app.id]
         );
 
         console.log(`✓ Access request created for ${email} to ${app.display_name}`);

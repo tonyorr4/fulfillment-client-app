@@ -179,6 +179,17 @@ async function initializeDatabase() {
             // Columns already exist from maintenance app - this is expected
             console.log('  (Skipped migration: users table already has access control columns)');
         }
+
+        // Migration: Add CSM (Customer Success Manager) column to clients table
+        try {
+            await pool.query(`
+                ALTER TABLE clients ADD COLUMN IF NOT EXISTS csm VARCHAR(255);
+            `);
+            console.log('✓ Migration: Added CSM column to clients table');
+        } catch (error) {
+            console.log('  (Skipped migration: CSM column already exists)');
+        }
+
         console.log('✓ Database schema initialized successfully');
 
     } catch (error) {

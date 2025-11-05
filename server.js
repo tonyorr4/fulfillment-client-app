@@ -394,7 +394,7 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
         const {
             clientName, email, clientId, inboundDate, clientType,
             avgOrders, numSkus, battery, heavySku, numPallets,
-            specialPackaging, barcoding, additionalInfo, salesTeam
+            specialPackaging, barcoding, additionalInfo, salesTeam, csm
         } = req.body;
 
         // Generate client ID if not provided
@@ -417,6 +417,7 @@ app.post('/api/clients', ensureAuthenticated, async (req, res) => {
             additional_info: additionalInfo || null,
             sales_team: salesTeam,
             fulfillment_ops: null, // Will be set by automation
+            csm: csm || null, // CSM is optional
             auto_approved: false, // Will be set by automation
             created_by: req.user.id,
             status: 'new-request' // Default status, will be changed by automation if auto-approved
@@ -616,7 +617,8 @@ app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, r
             barcoding,
             additional_info,
             sales_team,
-            fulfillment_ops
+            fulfillment_ops,
+            csm
         } = req.body;
 
 
@@ -684,6 +686,10 @@ app.patch('/api/clients/:id', ensureAuthenticated, blockSalesRole, async (req, r
         if (fulfillment_ops !== undefined) {
             updates.push(`fulfillment_ops = $${paramCount++}`);
             values.push(fulfillment_ops);
+        }
+        if (csm !== undefined) {
+            updates.push(`csm = $${paramCount++}`);
+            values.push(csm || null);
         }
 
         if (updates.length === 0) {

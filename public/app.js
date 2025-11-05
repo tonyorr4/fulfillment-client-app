@@ -360,6 +360,7 @@ function createClientCardElement(client) {
     // Assignee avatars
     const salesInitials = getInitials(client.sales_team);
     const opsInitials = getInitials(client.fulfillment_ops);
+    const csmInitials = client.csm ? getInitials(client.csm) : null;
 
     // Priority (you can add this field to your database or calculate it)
     const priority = 'medium'; // Default - you can make this dynamic
@@ -396,6 +397,7 @@ function createClientCardElement(client) {
                 <div class="assignees">
                     <div class="avatar sales" title="Sales: ${client.sales_team}">${salesInitials}</div>
                     <div class="avatar fulfillment" title="Fulfillment: ${client.fulfillment_ops}">${opsInitials}</div>
+                    ${csmInitials ? `<div class="avatar csm" title="CSM: ${client.csm}">${csmInitials}</div>` : ''}
                 </div>
                 <div class="card-stats">
                     <div class="stat-badge">
@@ -1808,6 +1810,12 @@ function updateSidebarFields(client) {
             fulfillmentOpsEl.textContent = client.fulfillment_ops || 'Not assigned';
         }
 
+        // CSM (in Assigned To section)
+        const csmEl = document.getElementById('detailCSM');
+        if (csmEl) {
+            csmEl.textContent = client.csm || 'Not assigned';
+        }
+
         console.log('✓ Sidebar fields updated successfully');
     } catch (error) {
         console.error('Error updating sidebar fields:', error);
@@ -1915,6 +1923,32 @@ async function openNewRequestModal() {
     } catch (error) {
         console.error('Error loading sales team members:', error);
         showToast('Failed to load sales team members', 'error');
+    }
+
+    // Fetch all users for CSM dropdown
+    try {
+        const response = await fetch('/api/users/all', {
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            const csmDropdown = document.querySelector('#newRequestModal select[name="csm"]');
+            // Clear existing options except first
+            csmDropdown.innerHTML = '<option value="">Select CSM (Optional)...</option>';
+
+            // Add users dynamically
+            data.users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.name;
+                option.setAttribute('data-email', user.email);
+                option.textContent = user.name;
+                csmDropdown.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading CSM members:', error);
+        // Non-critical error - CSM is optional
     }
 }
 
@@ -2116,6 +2150,16 @@ function makeFieldsEditable() {
             `<option value="${user.name}" ${user.name === currentValue ? 'selected' : ''}>${user.name}</option>`
         ).join('');
         fulfillmentOpsEl.innerHTML = `<select class="detail-field-select" data-field="fulfillment_ops">${options}</select>`;
+    }
+
+    // Make CSM editable (dynamic user dropdown)
+    const csmEl = document.getElementById('detailCSM');
+    if (csmEl && allUsers.length > 0) {
+        const currentValue = csmEl.textContent;
+        let options = '<option value="">Not assigned</option>' + allUsers.map(user =>
+            `<option value="${user.name}" ${user.name === currentValue ? 'selected' : ''}>${user.name}</option>`
+        ).join('');
+        csmEl.innerHTML = `<select class="detail-field-select" data-field="csm">${options}</select>`;
     }
 
     // Additional Info textarea (find it by looking for the field)
@@ -2376,6 +2420,7 @@ function renderInboundDatesTable(clients) {
                 </td>
                 <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.sales_team || '--'}</td>
                 <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.fulfillment_ops || '--'}</td>
+                <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.csm || '--'}</td>
             </tr>
         `;
     }).join('');
@@ -2429,7 +2474,7 @@ function renderOverdueDatesTable(clients) {
     if (clients.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" style="padding: 40px; text-align: center; color: var(--text-tertiary);">
+                <td colspan="8" style="padding: 40px; text-align: center; color: var(--text-tertiary);">
                     <div>No overdue clients found</div>
                 </td>
             </tr>
@@ -2475,6 +2520,7 @@ function renderOverdueDatesTable(clients) {
                 </td>
                 <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.sales_team || '--'}</td>
                 <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.fulfillment_ops || '--'}</td>
+                <td style="padding: 12px; font-size: 14px; color: var(--text-secondary);">${client.csm || '--'}</td>
             </tr>
         `;
     }).join('');
@@ -3354,6 +3400,7 @@ const writableFields = [
     { value: 'auto_approved', label: 'Auto Approved' },
     { value: 'fulfillment_ops', label: 'Fulfillment Ops' },
     { value: 'sales_team', label: 'Sales Team' },
+    { value: 'csm', label: 'CSM' },
     { value: 'heavy_sku', label: 'Heavy SKU' },
     { value: 'special_packaging', label: 'Special Packaging' },
     { value: 'barcoding', label: 'Barcoding' }
@@ -3740,6 +3787,7 @@ function addAction(actionType) {
                         <select class="assignee-field">
                             <option value="sales_team">Sales Team</option>
                             <option value="fulfillment_ops">Fulfillment Ops</option>
+                            <option value="csm">CSM</option>
                         </select>
                     </div>
                     <div class="form-group assignee-static-group" style="display: none;">
@@ -3775,7 +3823,7 @@ function updateActionValueInput(fieldSelect) {
     const selectedField = fieldSelect.value;
 
     // User fields that should use dropdown
-    const userFields = ['fulfillment_ops', 'sales_team'];
+    const userFields = ['fulfillment_ops', 'sales_team', 'csm'];
 
     if (userFields.includes(selectedField)) {
         // Replace with user dropdown
