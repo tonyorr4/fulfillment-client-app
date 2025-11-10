@@ -1,5 +1,12 @@
 const { google } = require('googleapis');
+const { Pool } = require('pg');
 require('dotenv').config();
+
+// PostgreSQL connection pool for user email lookups
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
 // Gmail API OAuth2 client
 let gmailApiConfigured = false;
@@ -49,6 +56,37 @@ async function verifyConnection() {
         console.error('   Error:', error.message);
         console.error('   Check OAuth credentials: GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN');
         return false;
+    }
+}
+
+/**
+ * Look up user's actual OAuth email from database by their name
+ * Uses lowercase name matching to handle case variations
+ * @param {string} userName - User's full name (e.g., "Flavius Simionescu", "Ian Guevara")
+ * @returns {string|null} - User's OAuth email or null if not found
+ */
+async function getUserEmailByName(userName) {
+    try {
+        // Normalize the name to lowercase for case-insensitive matching
+        const normalizedName = userName.toLowerCase().trim();
+
+        const result = await pool.query(`
+            SELECT email, name
+            FROM users
+            WHERE LOWER(name) = $1
+            LIMIT 1
+        `, [normalizedName]);
+
+        if (result.rows.length > 0) {
+            console.log(`✓ Found OAuth email for ${userName}: ${result.rows[0].email}`);
+            return result.rows[0].email;
+        } else {
+            console.error(`❌ No user found in database with name: ${userName}`);
+            return null;
+        }
+    } catch (error) {
+        console.error(`❌ Error looking up email for ${userName}:`, error.message);
+        return null;
     }
 }
 
@@ -252,8 +290,21 @@ View at: ${process.env.APP_URL}
  * Send notification when client moves to Client Setup (with auto-subtasks)
  */
 async function sendClientSetupNotification(clientData, salesTeam, fulfillmentOps) {
-    const salesEmail = `${salesTeam.toLowerCase().replace(' ', '.')}@easyship.com`;
-    const opsEmail = `${fulfillmentOps.toLowerCase().replace(' ', '.')}@easyship.com`;
+    // Look up actual OAuth emails from database instead of constructing them
+    const salesEmail = await getUserEmailByName(salesTeam);
+    const opsEmail = await getUserEmailByName(fulfillmentOps);
+
+    // Skip if emails couldn't be found
+    if (!salesEmail) {
+        console.error(`❌ Cannot send email to ${salesTeam}: Email not found in database`);
+    }
+    if (!opsEmail) {
+        console.error(`❌ Cannot send email to ${fulfillmentOps}: Email not found in database`);
+    }
+    if (!salesEmail || !opsEmail) {
+        console.error(`⚠️ Skipping sendClientSetupNotification due to missing emails`);
+        return;
+    }
 
     // Notify Sales Team
     const salesHtmlContent = `
